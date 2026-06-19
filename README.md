@@ -56,7 +56,7 @@ npm start
 Uygulama varsayılan olarak:
 
 ```
-http://localhost:3000
+http://localhost:5173
 ```
 
 adresinde çalışacaktır.
@@ -113,7 +113,7 @@ npm start
 The application will run at:
 
 ```
-http://localhost:3000
+http://localhost:5173
 ```
 
 ---
