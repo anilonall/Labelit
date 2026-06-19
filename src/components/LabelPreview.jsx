@@ -38,17 +38,21 @@ export function LabelPreview({
         <div className="cargo" style={{ color: form.accentColor }}>{form.labelTitle}</div>
       </div>
 
-      <div className="block">
-        <small>GONDEREN</small>
-        <strong>{form.senderName}</strong>
-        <p>{form.senderAddress}</p>
-      </div>
+      {form.showSender && (
+        <div className="block">
+          <small>GONDEREN</small>
+          <strong>{form.senderName}</strong>
+          {form.showSenderAddress && <p>{form.senderAddress}</p>}
+        </div>
+      )}
 
-      <div className={`block recipient ${form.highlightRecipient ? "highlighted" : ""}`} style={{ borderColor: form.highlightRecipient ? form.accentColor : "transparent" }}>
-        <small>ALICI</small>
-        <strong>{form.recipientName}</strong>
-        <p>{form.recipientAddress}</p>
-      </div>
+      {form.showRecipient && (
+        <div className={`block recipient ${form.highlightRecipient ? "highlighted" : ""}`} style={{ borderColor: form.highlightRecipient ? form.accentColor : "transparent" }}>
+          <small>ALICI</small>
+          <strong>{form.recipientName}</strong>
+          {form.showRecipientAddress && <p>{form.recipientAddress}</p>}
+        </div>
+      )}
 
       <div className={`grid ${visiblePrimaryCount <= 1 ? "single-stat" : ""} ${visiblePrimaryCount === 2 ? "two-stats" : ""}`}>
         {form.showOrderNo && <div><small>SIPARIS NO</small><strong>{form.orderNo}</strong></div>}
@@ -60,11 +64,11 @@ export function LabelPreview({
         <div className={`grid secondary-grid ${visibleSecondaryCount <= 1 ? "single-stat" : ""} ${visibleSecondaryCount === 2 ? "two-stats" : ""}`}>
           {form.showDistance && <div><small>MESAFE</small><strong>{distanceText}</strong></div>}
           {form.showDeliveryTime && <div><small>TESLIMAT</small><strong>{deliveryTimeText}</strong></div>}
-          {form.showDeliveryTime && <div><small>TIP</small><strong>{deliveryTypeText}</strong></div>}
+          {form.showDeliveryType && <div><small>TIP</small><strong>{deliveryTypeText}</strong></div>}
         </div>
       )}
 
-      <svg ref={barcodeRef} id="barcode"></svg>
+      {form.showBarcode && <svg ref={barcodeRef} id="barcode"></svg>}
 
       {(form.showQr || form.showNote) && (
         <div className={`bottom ${!form.showQr ? "no-qr" : ""}`}>

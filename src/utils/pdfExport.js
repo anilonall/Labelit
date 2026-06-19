@@ -9,11 +9,11 @@ function wrapText(pdf, text, maxWidth) {
   return pdf.splitTextToSize(String(text || ""), maxWidth);
 }
 
-async function buildBarcodeCanvas(value) {
+async function buildBarcodeCanvas(value, showBarcodeValue) {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   JsBarcode(svg, value || "0000000000", {
     format: "CODE128",
-    displayValue: true,
+    displayValue: showBarcodeValue,
     fontSize: 14,
     height: 70,
     margin: 0
@@ -72,6 +72,28 @@ function drawTextBlock(pdf, title, strongText, bodyText, x, y, width, textRgb, h
   return y + 0.88;
 }
 
+function drawMetaGrid(pdf, stats, x, y, w, pad) {
+  if (!stats.length) {
+    return y;
+  }
+
+  const statWidth = (w - (pad * 2)) / stats.length;
+  pdf.line(x + pad, y, x + w - pad, y);
+  stats.forEach((stat, index) => {
+    const sx = x + pad + (statWidth * index);
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(7);
+    pdf.text(stat[0], sx + 0.03, y + 0.14);
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(8);
+    pdf.text(String(stat[1] || "-"), sx + 0.03, y + 0.28);
+    if (index < stats.length - 1) {
+      pdf.line(sx + statWidth, y, sx + statWidth, y + 0.36);
+    }
+  });
+  return y + 0.4;
+}
+
 function drawVectorLabelWithAssets(pdf, state, x, y, w, h, barcodeData, qrData) {
   const pad = 0.12;
   const accent = hexToRgb(state.accentColor);
@@ -104,49 +126,46 @@ function drawVectorLabelWithAssets(pdf, state, x, y, w, h, barcodeData, qrData) 
   pdf.line(x + pad, cursorY, x + w - pad, cursorY);
   cursorY += 0.08;
 
-  cursorY = drawTextBlock(pdf, "GONDEREN", state.senderName, state.senderAddress, x, cursorY, w, text, false, state.accentColor);
-  cursorY = drawTextBlock(pdf, "ALICI", state.recipientName, state.recipientAddress, x, cursorY, w, text, state.highlightRecipient, state.accentColor);
+  if (state.showSender) {
+    cursorY = drawTextBlock(
+      pdf,
+      "GONDEREN",
+      state.senderName,
+      state.showSenderAddress ? state.senderAddress : "",
+      x,
+      cursorY,
+      w,
+      text,
+      false,
+      state.accentColor
+    );
+  }
+
+  if (state.showRecipient) {
+    cursorY = drawTextBlock(
+      pdf,
+      "ALICI",
+      state.recipientName,
+      state.showRecipientAddress ? state.recipientAddress : "",
+      x,
+      cursorY,
+      w,
+      text,
+      state.highlightRecipient,
+      state.accentColor
+    );
+  }
 
   const stats = getPrimaryStats(state);
-  if (stats.length) {
-    const statWidth = (w - (pad * 2)) / stats.length;
-    pdf.line(x + pad, cursorY, x + w - pad, cursorY);
-    stats.forEach((stat, index) => {
-      const sx = x + pad + (statWidth * index);
-      pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(7);
-      pdf.text(stat[0], sx + 0.03, cursorY + 0.14);
-      pdf.setFont("helvetica", "normal");
-      pdf.setFontSize(8);
-      pdf.text(String(stat[1] || "-"), sx + 0.03, cursorY + 0.28);
-      if (index < stats.length - 1) {
-        pdf.line(sx + statWidth, cursorY, sx + statWidth, cursorY + 0.36);
-      }
-    });
-    cursorY += 0.4;
-  }
+  cursorY = drawMetaGrid(pdf, stats, x, cursorY, w, pad);
 
   const secondaryStats = getSecondaryStats(state);
-  if (secondaryStats.length) {
-    const statWidth = (w - (pad * 2)) / secondaryStats.length;
-    pdf.line(x + pad, cursorY, x + w - pad, cursorY);
-    secondaryStats.forEach((stat, index) => {
-      const sx = x + pad + (statWidth * index);
-      pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(7);
-      pdf.text(stat[0], sx + 0.03, cursorY + 0.14);
-      pdf.setFont("helvetica", "normal");
-      pdf.setFontSize(8);
-      pdf.text(String(stat[1] || "-"), sx + 0.03, cursorY + 0.28);
-      if (index < secondaryStats.length - 1) {
-        pdf.line(sx + statWidth, cursorY, sx + statWidth, cursorY + 0.36);
-      }
-    });
-    cursorY += 0.4;
-  }
+  cursorY = drawMetaGrid(pdf, secondaryStats, x, cursorY, w, pad);
 
-  pdf.addImage(barcodeData, "PNG", x + pad, cursorY + 0.05, w - (pad * 2), 0.8, undefined, "FAST");
-  cursorY += 0.95;
+  if (state.showBarcode) {
+    pdf.addImage(barcodeData, "PNG", x + pad, cursorY + 0.05, w - (pad * 2), 0.8, undefined, "FAST");
+    cursorY += 0.95;
+  }
 
   if (state.showQr || state.showNote) {
     pdf.line(x + pad, cursorY, x + w - pad, cursorY);
@@ -172,7 +191,7 @@ export async function createPdfDocument(state) {
   const pageFormat = state.printMode === "a4" ? "a4" : [mmToInch(state.labelWidthMm), mmToInch(state.labelHeightMm)];
   const orientation = state.printMode === "a4" ? "portrait" : (state.labelWidthMm > state.labelHeightMm ? "landscape" : "portrait");
   const pdf = new jsPDF({ orientation, unit: "in", format: pageFormat, compress: false });
-  const barcodeCanvas = await buildBarcodeCanvas(state.barcodeText || "0000000000");
+  const barcodeCanvas = await buildBarcodeCanvas(state.barcodeText || "0000000000", state.showBarcodeValue);
   const barcodeData = barcodeCanvas.toDataURL("image/png");
   const qrData = await buildQrImage(state.barcodeText || "0000000000", state.showQr);
 

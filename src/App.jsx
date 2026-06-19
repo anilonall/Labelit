@@ -54,11 +54,18 @@ function buildCustomTemplatePayload(form) {
     showQr: form.showQr,
     showNote: form.showNote,
     highlightRecipient: form.highlightRecipient,
+    showSender: form.showSender,
+    showSenderAddress: form.showSenderAddress,
+    showRecipient: form.showRecipient,
+    showRecipientAddress: form.showRecipientAddress,
     showOrderNo: form.showOrderNo,
     showReference: form.showReference,
     showWeight: form.showWeight,
     showDistance: form.showDistance,
     showDeliveryTime: form.showDeliveryTime,
+    showDeliveryType: form.showDeliveryType,
+    showBarcode: form.showBarcode,
+    showBarcodeValue: form.showBarcodeValue,
     printMode: form.printMode,
     sheetLayout: form.sheetLayout,
     sizePreset: form.sizePreset,
@@ -108,7 +115,7 @@ function buildMergedForm(form) {
       deliveryTimeText,
       deliveryTypeText,
       visiblePrimaryCount: [form.showOrderNo, form.showReference, form.showWeight].filter(Boolean).length,
-      visibleSecondaryCount: [form.showDistance, form.showDeliveryTime, form.showDeliveryTime].filter(Boolean).length
+      visibleSecondaryCount: [form.showDistance, form.showDeliveryTime, form.showDeliveryType].filter(Boolean).length
     }
   };
 }
@@ -184,7 +191,8 @@ function App() {
     barcodeText: form.barcodeText,
     density: form.density,
     textColor: form.textColor,
-    showQr: form.showQr
+    showQr: form.showQr,
+    showBarcodeValue: form.showBarcodeValue
   });
 
   const sheetPageStyle = useSheetFrame({
@@ -414,30 +422,23 @@ function App() {
 ^LL1218
 ^CF0,35
 ^FO40,40^FD${safe(form.brandName)} - ${safe(form.labelTitle)}^FS
-^FO40,90^FD${safe(form.senderName)}^FS
-^FO40,135^FD${safe(form.senderAddress).replace(/\n/g, " ")}^FS
-^FO40,220^GB730,3,3^FS
-^CF0,45
-^FO40,255^FDALICI:^FS
-^CF0,55
-^FO40,315^FD${safe(form.recipientName)}^FS
-^CF0,32
-^FO40,385^FD${safe(form.recipientAddress).replace(/\n/g, " ")}^FS
-^FO40,490^GB730,3,3^FS
-^CF0,30
-^FO40,530^FDSiparis No: ${safe(form.orderNo)}^FS
-^FO40,575^FDReferans: ${safe(form.reference)}^FS
-^FO40,620^FDAgirlik: ${safe(stats.weightText)}^FS
-^FO40,665^FDMesafe: ${safe(stats.distanceText)}^FS
-^FO40,710^FDTeslimat: ${safe(stats.deliveryTimeText)}^FS
-^FO40,755^FDTip: ${safe(stats.deliveryTypeText)}^FS
-^FO80,820^BY3
-^BCN,130,Y,N,N
-^FD${safe(form.barcodeText)}^FS
-^FO40,1010^GB730,3,3^FS
-^CF0,30
-^FO40,1055^FDTeslimat Notu:^FS
-^FO40,1100^FD${safe(form.note)}^FS
+${form.showSender ? `^FO40,90^FD${safe(form.senderName)}^FS` : ""}
+${form.showSender && form.showSenderAddress ? `^FO40,135^FD${safe(form.senderAddress).replace(/\n/g, " ")}^FS` : ""}
+${form.showSender || form.showRecipient ? "^FO40,220^GB730,3,3^FS" : ""}
+${form.showRecipient ? "^CF0,45\n^FO40,255^FDALICI:^FS" : ""}
+${form.showRecipient ? `^CF0,55\n^FO40,315^FD${safe(form.recipientName)}^FS` : ""}
+${form.showRecipient && form.showRecipientAddress ? `^CF0,32\n^FO40,385^FD${safe(form.recipientAddress).replace(/\n/g, " ")}^FS` : ""}
+${form.showOrderNo || form.showReference || form.showWeight || form.showDistance || form.showDeliveryTime || form.showDeliveryType ? "^FO40,490^GB730,3,3^FS\n^CF0,30" : ""}
+${form.showOrderNo ? `^FO40,530^FDSiparis No: ${safe(form.orderNo)}^FS` : ""}
+${form.showReference ? `^FO40,575^FDReferans: ${safe(form.reference)}^FS` : ""}
+${form.showWeight ? `^FO40,620^FDAgirlik: ${safe(stats.weightText)}^FS` : ""}
+${form.showDistance ? `^FO40,665^FDMesafe: ${safe(stats.distanceText)}^FS` : ""}
+${form.showDeliveryTime ? `^FO40,710^FDTeslimat: ${safe(stats.deliveryTimeText)}^FS` : ""}
+${form.showDeliveryType ? `^FO40,755^FDTip: ${safe(stats.deliveryTypeText)}^FS` : ""}
+${form.showBarcode ? "^FO80,820^BY3\n^BCN,130,Y,N,N" : ""}
+${form.showBarcode ? `^FD${safe(form.barcodeText)}^FS` : ""}
+${form.showNote ? "^FO40,1010^GB730,3,3^FS\n^CF0,30\n^FO40,1055^FDTeslimat Notu:^FS" : ""}
+${form.showNote ? `^FO40,1100^FD${safe(form.note)}^FS` : ""}
 ^XZ
 `.trim());
   };
@@ -497,7 +498,11 @@ function App() {
   return (
     <>
       {showStartupOverlay && (
-        <StartupOverlay onBlankStart={startWithBlankLabel} onTemplateStart={startWithTemplate} />
+        <StartupOverlay
+          onBlankStart={startWithBlankLabel}
+          onTemplateStart={startWithTemplate}
+          savedTemplates={customTemplateEntries}
+        />
       )}
 
       <div className="app">

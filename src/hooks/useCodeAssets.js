@@ -2,7 +2,7 @@ import JsBarcode from "jsbarcode";
 import QRCode from "qrcode";
 import { useEffect, useState } from "react";
 
-export function useCodeAssets({ barcodeRef, barcodeText, density, textColor, showQr }) {
+export function useCodeAssets({ barcodeRef, barcodeText, density, textColor, showQr, showBarcodeValue }) {
   const [qrDataUrl, setQrDataUrl] = useState("");
 
   useEffect(() => {
@@ -12,13 +12,13 @@ export function useCodeAssets({ barcodeRef, barcodeText, density, textColor, sho
 
     JsBarcode(barcodeRef.current, barcodeText || "0000000000", {
       format: "CODE128",
-      displayValue: true,
+      displayValue: showBarcodeValue,
       fontSize: density === "compact" ? 11 : 14,
       lineColor: textColor,
       height: density === "compact" ? 62 : 72,
       margin: 0
     });
-  }, [barcodeRef, barcodeText, density, textColor]);
+  }, [barcodeRef, barcodeText, density, textColor, showBarcodeValue]);
 
   useEffect(() => {
     let cancelled = false;

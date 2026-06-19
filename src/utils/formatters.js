@@ -33,6 +33,6 @@ export function getSecondaryStats(state) {
   const stats = [];
   if (state.showDistance) stats.push(["MESAFE", state.distance]);
   if (state.showDeliveryTime) stats.push(["TESLIMAT", state.deliveryTime]);
-  if (state.showDeliveryTime) stats.push(["TIP", state.deliveryType]);
+  if (state.showDeliveryType) stats.push(["TIP", state.deliveryType]);
   return stats;
 }
