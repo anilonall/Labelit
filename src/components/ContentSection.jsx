@@ -1,4 +1,5 @@
 import { FormField } from "./FormField";
+import { customFieldSourceOptions, getCustomFieldSourceLabel } from "../utils/customFields";
 
 export function ContentSection({
   form,
@@ -131,12 +132,23 @@ export function ContentSection({
                   />
                 </div>
                 <div>
+                  <label htmlFor={`custom-source-${field.id}`}>{t("customFieldSource")}</label>
+                  <select id={`custom-source-${field.id}`} value={field.sourceType || "manual"} onChange={event => onUpdateCustomField(field.id, { sourceType: event.target.value })}>
+                    {customFieldSourceOptions.map(option => (
+                      <option key={option.key} value={option.key}>{getCustomFieldSourceLabel(option.key, form.uiLanguage)}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="inline-fields">
+                <div>
                   <FormField
                     id={`custom-value-${field.id}`}
                     label={t("customFieldValue")}
                     value={field.value}
                     onChange={value => onUpdateCustomField(field.id, { value })}
                     placeholder={t("customFieldValuePlaceholder")}
+                    disabled={(field.sourceType || "manual") !== "manual"}
                   />
                 </div>
               </div>

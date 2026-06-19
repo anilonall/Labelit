@@ -1,5 +1,7 @@
-import { hexToRgba } from "../utils/colors";
+import { useEffect, useRef, useState } from "react";
+import { normalizeLayoutItems } from "../constants/layoutItems";
 import { getFontOption } from "../constants/typography";
+import { hexToRgba } from "../utils/colors";
 
 const RULER_GUTTER = 24;
 
@@ -34,6 +36,100 @@ function Ruler({ ticks, orientation, label, accentColor }) {
   );
 }
 
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function EditableBlock({ itemKey, frame, onChange, children, accentColor, labelRef }) {
+  const [editState, setEditState] = useState(null);
+
+  const startDrag = event => {
+    event.stopPropagation();
+    const bounds = labelRef.current?.getBoundingClientRect();
+    if (!bounds) {
+      return;
+    }
+
+    setEditState({
+      mode: "move",
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      origin: frame,
+      bounds
+    });
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  };
+
+  const startResize = event => {
+    event.stopPropagation();
+    const bounds = labelRef.current?.getBoundingClientRect();
+    if (!bounds) {
+      return;
+    }
+
+    setEditState({
+      mode: "resize",
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      origin: frame,
+      bounds
+    });
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  };
+
+  const handleMove = event => {
+    if (!editState || editState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    const deltaXPercent = ((event.clientX - editState.startX) / editState.bounds.width) * 100;
+    const deltaYPercent = ((event.clientY - editState.startY) / editState.bounds.height) * 100;
+
+    if (editState.mode === "move") {
+      const x = clamp(editState.origin.x + deltaXPercent, 0, 100 - editState.origin.w);
+      const y = clamp(editState.origin.y + deltaYPercent, 0, 100 - editState.origin.h);
+      onChange(itemKey, { x, y });
+      return;
+    }
+
+    const w = clamp(editState.origin.w + deltaXPercent, 12, 100 - editState.origin.x);
+    const h = clamp(editState.origin.h + deltaYPercent, 8, 100 - editState.origin.y);
+    onChange(itemKey, { w, h });
+  };
+
+  const stopEdit = event => {
+    if (!editState || (event.pointerId !== undefined && editState.pointerId !== event.pointerId)) {
+      return;
+    }
+
+    setEditState(null);
+  };
+
+  return (
+    <div
+      className="layout-block"
+      style={{
+        left: `${frame.x}%`,
+        top: `${frame.y}%`,
+        width: `${frame.w}%`,
+        height: `${frame.h}%`,
+        "--layout-accent": accentColor
+      }}
+      onPointerMove={handleMove}
+      onPointerUp={stopEdit}
+      onPointerCancel={stopEdit}
+    >
+      <div className="layout-block-toolbar" onPointerDown={startDrag}>
+        <span className="layout-block-dots" />
+      </div>
+      <div className="layout-block-body">{children}</div>
+      <button type="button" className="layout-resize-handle" onPointerDown={startResize} aria-label={`${itemKey}-resize`} />
+    </div>
+  );
+}
+
 export function LabelPreview({
   form,
   t,
@@ -42,7 +138,11 @@ export function LabelPreview({
   qrDataUrl,
   onPointerDown,
   previewTransform,
-  stats
+  stats,
+  onLayoutItemChange,
+  onFieldChange,
+  onAddCustomField,
+  onRemoveCustomField
 }) {
   const { weightText, distanceText, deliveryTimeText, deliveryTypeText, visiblePrimaryCount, visibleSecondaryCount } = stats;
   const horizontalTicks = buildTicks(Number(form.labelWidthMm) || 100);
@@ -51,7 +151,30 @@ export function LabelPreview({
   const gridColumns = Math.max(1, Number(form.labelWidthMm) / gridStep);
   const gridRows = Math.max(1, Number(form.labelHeightMm) / gridStep);
   const fontOption = getFontOption(form.fontFamily);
-  const visibleCustomFields = (form.customFields || []).filter(field => field.visible !== false && (field.label || field.value));
+  const visibleCustomFields = (stats.customFields || []).filter(field => field.visible !== false && (field.label || field.value));
+  const layoutItems = normalizeLayoutItems(form.layoutItems);
+  const labelBodyRef = useRef(null);
+  const [contextMenu, setContextMenu] = useState(null);
+
+  useEffect(() => {
+    const closeMenu = () => setContextMenu(null);
+    window.addEventListener("pointerdown", closeMenu);
+    return () => {
+      window.removeEventListener("pointerdown", closeMenu);
+    };
+  }, []);
+
+  const openContextMenu = (event, items) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setContextMenu({
+      x: event.clientX,
+      y: event.clientY,
+      items
+    });
+  };
+
+  const removeBuiltInCell = key => onFieldChange?.(key, false);
 
   return (
     <section
@@ -59,6 +182,10 @@ export function LabelPreview({
       ref={labelRef}
       className="label-stage"
       onPointerDown={onPointerDown}
+      onContextMenu={event => {
+        event.preventDefault();
+        event.stopPropagation();
+      }}
       style={{
         transform: previewTransform,
         width: `calc(${form.labelWidthMm}mm + ${RULER_GUTTER}px)`,
@@ -73,7 +200,13 @@ export function LabelPreview({
       )}
 
       <div
+        ref={labelBodyRef}
         className={`label ${form.density === "compact" ? "compact" : ""}`}
+        onContextMenu={event => {
+          event.preventDefault();
+          event.stopPropagation();
+          openContextMenu(event, [{ label: t("addCell"), action: () => onAddCustomField?.() }]);
+        }}
         style={{
           width: `${form.labelWidthMm}mm`,
           height: `${form.labelHeightMm}mm`,
@@ -124,70 +257,140 @@ export function LabelPreview({
           {Math.round(Number(form.labelWidthMm))} x {Math.round(Number(form.labelHeightMm))} mm
         </div>
 
-        <div className="top">
+        <EditableBlock itemKey="brand" frame={layoutItems.brand} onChange={onLayoutItemChange} accentColor={form.accentColor} labelRef={labelBodyRef}>
           <div className="logo-wrap">
             {form.logoDataUrl ? <img className="logo-image" alt="Logo" src={form.logoDataUrl} /> : (
               form.brandName ? <div className="logo" style={{ color: form.accentColor }}>{form.brandName}</div> : null
             )}
           </div>
+        </EditableBlock>
+
+        <EditableBlock itemKey="title" frame={layoutItems.title} onChange={onLayoutItemChange} accentColor={form.accentColor} labelRef={labelBodyRef}>
           <div className="cargo" style={{ color: form.accentColor }}>{form.labelTitle}</div>
-        </div>
+        </EditableBlock>
 
         {form.showSender && (
-          <div className="block">
-            <small>{t("labelSender")}</small>
-            <strong>{form.senderName}</strong>
-            {form.showSenderAddress && <p>{form.senderAddress}</p>}
-          </div>
+          <EditableBlock itemKey="sender" frame={layoutItems.sender} onChange={onLayoutItemChange} accentColor={form.accentColor} labelRef={labelBodyRef}>
+            <div className="block free-block">
+              <small>{t("labelSender")}</small>
+              <strong>{form.senderName}</strong>
+              {form.showSenderAddress && <p>{form.senderAddress}</p>}
+            </div>
+          </EditableBlock>
         )}
 
         {form.showRecipient && (
-          <div className={`block recipient ${form.highlightRecipient ? "highlighted" : ""}`} style={{ borderColor: form.highlightRecipient ? form.accentColor : "transparent" }}>
-            <small>{t("labelRecipient")}</small>
-            <strong>{form.recipientName}</strong>
-            {form.showRecipientAddress && <p>{form.recipientAddress}</p>}
-          </div>
+          <EditableBlock itemKey="recipient" frame={layoutItems.recipient} onChange={onLayoutItemChange} accentColor={form.accentColor} labelRef={labelBodyRef}>
+            <div className={`block recipient free-block ${form.highlightRecipient ? "highlighted" : ""}`} style={{ borderColor: form.highlightRecipient ? form.accentColor : "transparent" }}>
+              <small>{t("labelRecipient")}</small>
+              <strong>{form.recipientName}</strong>
+              {form.showRecipientAddress && <p>{form.recipientAddress}</p>}
+            </div>
+          </EditableBlock>
         )}
 
-        <div className={`grid ${visiblePrimaryCount <= 1 ? "single-stat" : ""} ${visiblePrimaryCount === 2 ? "two-stats" : ""}`}>
-          {form.showOrderNo && <div><small>{t("labelOrderNo")}</small><strong>{form.orderNo}</strong></div>}
-          {form.showReference && <div><small>{t("labelReference")}</small><strong>{form.reference}</strong></div>}
-          {form.showWeight && <div><small>{t("labelWeight")}</small><strong>{weightText}</strong></div>}
-        </div>
-
-        {visibleSecondaryCount > 0 && (
-          <div className={`grid secondary-grid ${visibleSecondaryCount <= 1 ? "single-stat" : ""} ${visibleSecondaryCount === 2 ? "two-stats" : ""}`}>
-            {form.showDistance && <div><small>{t("labelDistance")}</small><strong>{distanceText}</strong></div>}
-            {form.showDeliveryTime && <div><small>{t("labelDelivery")}</small><strong>{deliveryTimeText}</strong></div>}
-            {form.showDeliveryType && <div><small>{t("labelType")}</small><strong>{deliveryTypeText}</strong></div>}
-          </div>
-        )}
-
-        {visibleCustomFields.length > 0 && (
-          <div className={`grid custom-grid ${visibleCustomFields.length <= 1 ? "single-stat" : ""} ${visibleCustomFields.length === 2 ? "two-stats" : ""}`}>
-            {visibleCustomFields.map(field => (
-              <div key={field.id}>
-                <small>{field.label || t("customFieldLabel")}</small>
-                <strong>{field.value}</strong>
+        <EditableBlock itemKey="primary" frame={layoutItems.primary} onChange={onLayoutItemChange} accentColor={form.accentColor} labelRef={labelBodyRef}>
+          <div className={`grid free-grid ${visiblePrimaryCount <= 1 ? "single-stat" : ""} ${visiblePrimaryCount === 2 ? "two-stats" : ""}`}>
+            {form.showOrderNo && (
+              <div onContextMenu={event => openContextMenu(event, [{ label: t("removeCell"), action: () => removeBuiltInCell("showOrderNo") }])}>
+                <small>{t("labelOrderNo")}</small><strong>{form.orderNo}</strong>
               </div>
-            ))}
-          </div>
-        )}
-
-        {form.showBarcode && <svg ref={barcodeRef} id="barcode"></svg>}
-
-        {(form.showQr || form.showNote) && (
-          <div className={`bottom ${!form.showQr ? "no-qr" : ""}`}>
-            {form.showQr && <div id="qrcode">{qrDataUrl ? <img src={qrDataUrl} alt="QR Code" width={form.density === "compact" ? 72 : 85} height={form.density === "compact" ? 72 : 85} /> : null}</div>}
-            {form.showNote && (
-              <div>
-                <small>{t("labelNote")}</small>
-                <p>{form.note}</p>
+            )}
+            {form.showReference && (
+              <div onContextMenu={event => openContextMenu(event, [{ label: t("removeCell"), action: () => removeBuiltInCell("showReference") }])}>
+                <small>{t("labelReference")}</small><strong>{form.reference}</strong>
+              </div>
+            )}
+            {form.showWeight && (
+              <div onContextMenu={event => openContextMenu(event, [{ label: t("removeCell"), action: () => removeBuiltInCell("showWeight") }])}>
+                <small>{t("labelWeight")}</small><strong>{weightText}</strong>
               </div>
             )}
           </div>
+        </EditableBlock>
+
+        {visibleSecondaryCount > 0 && (
+          <EditableBlock itemKey="secondary" frame={layoutItems.secondary} onChange={onLayoutItemChange} accentColor={form.accentColor} labelRef={labelBodyRef}>
+            <div className={`grid free-grid ${visibleSecondaryCount <= 1 ? "single-stat" : ""} ${visibleSecondaryCount === 2 ? "two-stats" : ""}`}>
+              {form.showDistance && (
+                <div onContextMenu={event => openContextMenu(event, [{ label: t("removeCell"), action: () => removeBuiltInCell("showDistance") }])}>
+                  <small>{t("labelDistance")}</small><strong>{distanceText}</strong>
+                </div>
+              )}
+              {form.showDeliveryTime && (
+                <div onContextMenu={event => openContextMenu(event, [{ label: t("removeCell"), action: () => removeBuiltInCell("showDeliveryTime") }])}>
+                  <small>{t("labelDelivery")}</small><strong>{deliveryTimeText}</strong>
+                </div>
+              )}
+              {form.showDeliveryType && (
+                <div onContextMenu={event => openContextMenu(event, [{ label: t("removeCell"), action: () => removeBuiltInCell("showDeliveryType") }])}>
+                  <small>{t("labelType")}</small><strong>{deliveryTypeText}</strong>
+                </div>
+              )}
+            </div>
+          </EditableBlock>
         )}
+
+        {visibleCustomFields.length > 0 && (
+          <EditableBlock itemKey="custom" frame={layoutItems.custom} onChange={onLayoutItemChange} accentColor={form.accentColor} labelRef={labelBodyRef}>
+            <div
+              className={`grid free-grid ${visibleCustomFields.length <= 1 ? "single-stat" : ""} ${visibleCustomFields.length === 2 ? "two-stats" : ""}`}
+              onContextMenu={event => openContextMenu(event, [{ label: t("addCell"), action: () => onAddCustomField?.() }])}
+            >
+              {visibleCustomFields.map(field => (
+                <div
+                  key={field.id}
+                  onContextMenu={event => openContextMenu(event, [
+                    { label: t("addCell"), action: () => onAddCustomField?.() },
+                    { label: t("removeCell"), action: () => onRemoveCustomField?.(field.id) }
+                  ])}
+                >
+                  <small>{field.label || t("customFieldLabel")}</small>
+                  <strong>{field.value}</strong>
+                </div>
+              ))}
+            </div>
+          </EditableBlock>
+        )}
+
+        {form.showBarcode && (
+          <EditableBlock itemKey="barcode" frame={layoutItems.barcode} onChange={onLayoutItemChange} accentColor={form.accentColor} labelRef={labelBodyRef}>
+            <svg ref={barcodeRef} id="barcode" />
+          </EditableBlock>
+        )}
+
+        {(form.showQr || form.showNote) && (
+          <EditableBlock itemKey="footer" frame={layoutItems.footer} onChange={onLayoutItemChange} accentColor={form.accentColor} labelRef={labelBodyRef}>
+            <div className={`bottom free-bottom ${!form.showQr ? "no-qr" : ""}`}>
+              {form.showQr && <div id="qrcode">{qrDataUrl ? <img src={qrDataUrl} alt="QR Code" width={form.density === "compact" ? 72 : 85} height={form.density === "compact" ? 72 : 85} /> : null}</div>}
+              {form.showNote && (
+                <div>
+                  <small>{t("labelNote")}</small>
+                  <p>{form.note}</p>
+                </div>
+              )}
+            </div>
+          </EditableBlock>
+        )}
+
       </div>
+      {contextMenu && (
+        <div className="preview-context-menu" style={{ left: contextMenu.x, top: contextMenu.y }} onPointerDown={event => event.stopPropagation()}>
+          {contextMenu.items.map((item, index) => (
+            <button
+              key={`${item.label}-${index}`}
+              type="button"
+              className="preview-context-item"
+              onClick={() => {
+                item.action?.();
+                setContextMenu(null);
+              }}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
     </section>
   );
 }

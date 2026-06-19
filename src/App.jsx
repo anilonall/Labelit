@@ -8,11 +8,13 @@ import { PrintSettingsSection } from "./components/PrintSettingsSection";
 import { StartupOverlay } from "./components/StartupOverlay";
 import { TemplateSection } from "./components/TemplateSection";
 import { getTranslator } from "./constants/i18n";
+import { normalizeLayoutItems } from "./constants/layoutItems";
 import { blankTemplate, buildInitialForm } from "./constants/templates";
 import { getGroupByKey, getPresetByKey } from "./constants/sizePresets";
 import { useCodeAssets } from "./hooks/useCodeAssets";
 import { usePreviewTransform } from "./hooks/usePreviewTransform";
 import { useSheetFrame } from "./hooks/useSheetFrame";
+import { normalizeCustomFields, resolveCustomFields } from "./utils/customFields";
 import { formatDeliveryTime, formatMeasurement } from "./utils/formatters";
 import { safe, slugify } from "./utils/helpers";
 import { createPdfDocument } from "./utils/pdfExport";
@@ -20,19 +22,6 @@ import { isBuiltInTemplate, loadTemplates, persistCustomTemplates } from "./util
 
 function normalizeSheetLayout(value) {
   return value === "single" ? "single" : "single";
-}
-
-function normalizeCustomFields(fields) {
-  if (!Array.isArray(fields)) {
-    return [];
-  }
-
-  return fields.map((field, index) => ({
-    id: field?.id || `custom-field-${Date.now()}-${index}`,
-    label: field?.label || "",
-    value: field?.value || "",
-    visible: field?.visible !== false
-  }));
 }
 
 function collectContentState(form) {
@@ -58,8 +47,8 @@ function collectContentState(form) {
 
 function buildCustomTemplatePayload(form) {
   return {
-    name: form.templateName.trim() || "Benim Sablonum",
-    description: "Kaydedilen ozel gorunum.",
+    name: form.templateName.trim() || "Benim Şablonum",
+    description: "Kaydedilen özel görünüm.",
     brandName: form.brandName,
     labelTitle: form.labelTitle,
     accentColor: form.accentColor,
@@ -103,6 +92,7 @@ function buildCustomTemplatePayload(form) {
     pageMarginTop: Number(form.pageMarginTop),
     pageMarginSide: Number(form.pageMarginSide),
     sheetGap: Number(form.sheetGap),
+    layoutItems: normalizeLayoutItems(form.layoutItems),
     logoDataUrl: form.logoDataUrl || ""
   };
 }
@@ -127,6 +117,12 @@ function buildMergedForm(form) {
   const distanceText = formatMeasurement(form.distanceValue, form.distanceUnit);
   const deliveryTimeText = formatDeliveryTime(form.deliveryTime, form.uiLanguage);
   const deliveryTypeText = [form.deliveryType, form.deliveryWindow].filter(Boolean).join(" / ");
+  const resolvedCustomFields = resolveCustomFields(form.customFields, form, {
+    weightText,
+    distanceText,
+    deliveryTimeText,
+    deliveryTypeText
+  });
 
   return {
     printableState: {
@@ -138,13 +134,15 @@ function buildMergedForm(form) {
       deliveryType: deliveryTypeText,
       barcodeText: form.barcodeText || "0000000000",
       uiLanguage: form.uiLanguage,
-      customFields: normalizeCustomFields(form.customFields)
+      customFields: resolvedCustomFields,
+      layoutItems: normalizeLayoutItems(form.layoutItems)
     },
     stats: {
       weightText,
       distanceText,
       deliveryTimeText,
       deliveryTypeText,
+      customFields: resolvedCustomFields,
       visiblePrimaryCount: [form.showOrderNo, form.showReference, form.showWeight].filter(Boolean).length,
       visibleSecondaryCount: [form.showDistance, form.showDeliveryTime, form.showDeliveryType].filter(Boolean).length
     }
@@ -311,7 +309,7 @@ function App() {
           ...existing,
           [activeTemplate]: {
             ...existing[activeTemplate],
-            name: value.trim() || "Benim Sablonum"
+            name: value.trim() || "Benim Şablonum"
           }
         }));
       }
@@ -335,7 +333,7 @@ function App() {
     setPreviewOffset({ x: 0, y: 0 });
     setForm(current => ({
       ...current,
-      templateName: template.name || "Benim Sablonum",
+      templateName: template.name || "Benim Şablonum",
       ...template,
       sheetLayout: normalizeSheetLayout(template.sheetLayout)
     }));
@@ -348,7 +346,7 @@ function App() {
     setForm({
       ...buildInitialForm(),
       ...blankTemplate,
-      templateName: "Bos Etiket",
+      templateName: "Boş Etiket",
       uiLanguage: form.uiLanguage,
       senderName: "",
       senderAddress: "",
@@ -365,7 +363,8 @@ function App() {
       deliveryWindow: "",
       barcodeText: "",
       note: "",
-      customFields: []
+      customFields: [],
+      layoutItems: normalizeLayoutItems(blankTemplate.layoutItems)
     });
   };
 
@@ -378,7 +377,8 @@ function App() {
           id: `custom-field-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
           label: "",
           value: "",
-          visible: true
+          visible: true,
+          sourceType: "manual"
         }
       ]
     }));
@@ -437,7 +437,7 @@ function App() {
 
   const clearTemplateLibrary = () => {
     const customKeys = Object.keys(templates).filter(key => !isBuiltInTemplate(key));
-    if (!customKeys.length || !window.confirm("Kutuphane icindeki tum ozel sablonlar silinsin mi?")) {
+    if (!customKeys.length || !window.confirm("Kütüphane içindeki tüm özel şablonlar silinsin mi?")) {
       return;
     }
 
@@ -449,7 +449,7 @@ function App() {
 
   const deleteCurrentTemplate = () => {
     if (isBuiltInTemplate(activeTemplate)) {
-      window.alert("Hazir sablonlar silinemez.");
+      window.alert("Hazır şablonlar silinemez.");
       return;
     }
 
@@ -458,7 +458,7 @@ function App() {
       return;
     }
 
-    if (!window.confirm(`"${template.name}" sablonunu silmek istiyor musun?`)) {
+    if (!window.confirm(`"${template.name}" şablonunu silmek istiyor musun?`)) {
       return;
     }
 
@@ -487,7 +487,7 @@ function App() {
     const contentState = data.content || {};
 
     if (!Object.keys(styleState).length && !Object.keys(contentState).length) {
-      window.alert("JSON icinde yuklenecek ayar bulunamadi.");
+      window.alert("JSON içinde yüklenecek ayar bulunamadı.");
       return;
     }
 
@@ -499,6 +499,7 @@ function App() {
       logoDataUrl: styleState.logoDataUrl || "",
       uiLanguage: styleState.uiLanguage || form.uiLanguage,
       customFields: normalizeCustomFields(contentState.customFields || styleState.customFields || form.customFields),
+      layoutItems: normalizeLayoutItems(styleState.layoutItems || form.layoutItems),
       sheetLayout: normalizeSheetLayout(styleState.sheetLayout || form.sheetLayout)
     };
 
@@ -516,7 +517,7 @@ function App() {
       const text = await file.text();
       applyLoadedSettings(JSON.parse(text));
     } catch {
-      window.alert("Secilen JSON dosyasi okunamadi.");
+      window.alert("Seçilen JSON dosyası okunamadı.");
     } finally {
       event.target.value = "";
     }
@@ -528,14 +529,15 @@ function App() {
   };
 
   const exportZpl = () => {
-    const visibleCustomFields = normalizeCustomFields(form.customFields)
+    const visibleCustomFields = stats.customFields
       .filter(field => field.visible !== false && (field.label || field.value))
       .map((field, index) => `^FO40,${800 + (index * 45)}^FD${safe(field.label || t("customFieldLabel"))}: ${safe(field.value)}^FS`)
       .join("\n");
-    const barcodeY = 820 + (normalizeCustomFields(form.customFields).filter(field => field.visible !== false && (field.label || field.value)).length * 45);
-    const noteDividerY = 1010 + (normalizeCustomFields(form.customFields).filter(field => field.visible !== false && (field.label || field.value)).length * 45);
-    const noteTitleY = 1055 + (normalizeCustomFields(form.customFields).filter(field => field.visible !== false && (field.label || field.value)).length * 45);
-    const noteBodyY = 1100 + (normalizeCustomFields(form.customFields).filter(field => field.visible !== false && (field.label || field.value)).length * 45);
+    const visibleCustomFieldCount = stats.customFields.filter(field => field.visible !== false && (field.label || field.value)).length;
+    const barcodeY = 820 + (visibleCustomFieldCount * 45);
+    const noteDividerY = 1010 + (visibleCustomFieldCount * 45);
+    const noteTitleY = 1055 + (visibleCustomFieldCount * 45);
+    const noteBodyY = 1100 + (visibleCustomFieldCount * 45);
 
     setZplOutput(`
 ^XA
@@ -568,6 +570,19 @@ ${form.showNote ? `^FO40,${noteBodyY}^FD${safe(form.note)}^FS` : ""}
   const changeSize = value => {
     const zoomFactor = 1.15;
     setScale(current => (value > 0 ? current * zoomFactor : current / zoomFactor));
+  };
+
+  const updateLayoutItem = (itemKey, patch) => {
+    setForm(current => ({
+      ...current,
+      layoutItems: {
+        ...normalizeLayoutItems(current.layoutItems),
+        [itemKey]: {
+          ...normalizeLayoutItems(current.layoutItems)[itemKey],
+          ...patch
+        }
+      }
+    }));
   };
 
   const startDrag = event => {
@@ -717,6 +732,10 @@ ${form.showNote ? `^FO40,${noteBodyY}^FD${safe(form.note)}^FS` : ""}
           previewModeTitle={previewModeTitle}
           previewModeCopy={previewModeCopy}
           stats={stats}
+          onLayoutItemChange={updateLayoutItem}
+          onFieldChange={updateField}
+          onAddCustomField={addCustomField}
+          onRemoveCustomField={removeCustomField}
         />
       </div>
     </>

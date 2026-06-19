@@ -1,3 +1,5 @@
+import { defaultLayoutItems } from "./layoutItems";
+
 export const LIBRARY_KEY = "label-template-library-v1";
 
 export const builtInTemplateKeys = ["blank", "shipping", "cargo", "receiving", "return", "transfer", "pallet"];
@@ -48,6 +50,7 @@ export const baseTemplates = {
     pageMarginTop: 12,
     pageMarginSide: 12,
     sheetGap: 8,
+    layoutItems: defaultLayoutItems,
     logoDataUrl: ""
   },
   cargo: {
@@ -95,6 +98,7 @@ export const baseTemplates = {
     pageMarginTop: 12,
     pageMarginSide: 12,
     sheetGap: 6,
+    layoutItems: defaultLayoutItems,
     logoDataUrl: ""
   },
   receiving: {
@@ -142,6 +146,7 @@ export const baseTemplates = {
     pageMarginTop: 10,
     pageMarginSide: 10,
     sheetGap: 6,
+    layoutItems: defaultLayoutItems,
     logoDataUrl: ""
   },
   return: {
@@ -189,6 +194,7 @@ export const baseTemplates = {
     pageMarginTop: 8,
     pageMarginSide: 8,
     sheetGap: 4,
+    layoutItems: defaultLayoutItems,
     logoDataUrl: ""
   },
   transfer: {
@@ -236,6 +242,7 @@ export const baseTemplates = {
     pageMarginTop: 10,
     pageMarginSide: 10,
     sheetGap: 6,
+    layoutItems: defaultLayoutItems,
     logoDataUrl: ""
   },
   pallet: {
@@ -283,6 +290,7 @@ export const baseTemplates = {
     pageMarginTop: 10,
     pageMarginSide: 10,
     sheetGap: 6,
+    layoutItems: defaultLayoutItems,
     logoDataUrl: ""
   }
 };
@@ -332,6 +340,7 @@ export const blankTemplate = {
   pageMarginTop: 12,
   pageMarginSide: 12,
   sheetGap: 8,
+  layoutItems: defaultLayoutItems,
   logoDataUrl: ""
 };
 

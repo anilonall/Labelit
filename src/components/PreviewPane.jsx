@@ -15,7 +15,11 @@ export function PreviewPane({
   previewTransform,
   previewModeTitle,
   previewModeCopy,
-  stats
+  stats,
+  onLayoutItemChange,
+  onFieldChange,
+  onAddCustomField,
+  onRemoveCustomField
 }) {
   return (
     <main className="preview-wrap">
@@ -55,6 +59,10 @@ export function PreviewPane({
                   onPointerDown={onStartDrag}
                   previewTransform={previewTransform}
                   stats={stats}
+                  onLayoutItemChange={onLayoutItemChange}
+                  onFieldChange={onFieldChange}
+                  onAddCustomField={onAddCustomField}
+                  onRemoveCustomField={onRemoveCustomField}
                 />
               ) : (
                 <div className="slot-placeholder">{t("emptySlot")}</div>
