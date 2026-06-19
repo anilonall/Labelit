@@ -1,4 +1,5 @@
 import { hexToRgba } from "../utils/colors";
+import { getFontOption } from "../constants/typography";
 
 const RULER_GUTTER = 24;
 
@@ -49,6 +50,7 @@ export function LabelPreview({
   const gridStep = Math.max(2, Number(form.gridStepMm) || 10);
   const gridColumns = Math.max(1, Number(form.labelWidthMm) / gridStep);
   const gridRows = Math.max(1, Number(form.labelHeightMm) / gridStep);
+  const fontOption = getFontOption(form.fontFamily);
 
   return (
     <section
@@ -79,7 +81,12 @@ export function LabelPreview({
           color: form.textColor,
           borderColor: form.borderColor,
           borderWidth: `${form.borderWidth}px`,
-          "--recipient-accent": hexToRgba(form.accentColor, 0.14)
+          "--recipient-accent": hexToRgba(form.accentColor, 0.14),
+          "--label-font-family": fontOption.css,
+          "--brand-font-size": `${form.brandFontSize}px`,
+          "--title-font-size": `${form.titleFontSize}px`,
+          "--heading-font-size": `${form.headingFontSize}px`,
+          "--body-font-size": `${form.bodyFontSize}px`
         }}
       >
         {form.showGridOverlay && (

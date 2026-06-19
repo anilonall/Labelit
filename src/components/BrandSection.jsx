@@ -1,4 +1,5 @@
 import { FormField } from "./FormField";
+import { fontFamilyOptions } from "../constants/typography";
 
 function ToggleGroup({ title, items, form, onFieldChange }) {
   return (
@@ -43,6 +44,21 @@ export function BrandSection({ form, t, logoStatus, logoInputRef, onFieldChange,
             <option value="comfortable">{t("comfortable")}</option>
             <option value="compact">{t("compact")}</option>
           </select>
+        </div>
+      </div>
+      <div className="option-group">
+        <h3>{t("typography")}</h3>
+        <label htmlFor="fontFamily">{t("fontFamily")}</label>
+        <select id="fontFamily" value={form.fontFamily} onChange={event => onFieldChange("fontFamily", event.target.value)}>
+          {fontFamilyOptions.map(option => (
+            <option key={option.key} value={option.key}>{option.label}</option>
+          ))}
+        </select>
+        <div className="inline-fields double-stack">
+          <div><FormField id="brandFontSize" label={t("brandFontSize")} type="number" value={form.brandFontSize} onChange={value => onFieldChange("brandFontSize", value)} min={12} max={72} step={1} /></div>
+          <div><FormField id="titleFontSize" label={t("titleFontSize")} type="number" value={form.titleFontSize} onChange={value => onFieldChange("titleFontSize", value)} min={8} max={36} step={1} /></div>
+          <div><FormField id="headingFontSize" label={t("headingFontSize")} type="number" value={form.headingFontSize} onChange={value => onFieldChange("headingFontSize", value)} min={7} max={24} step={1} /></div>
+          <div><FormField id="bodyFontSize" label={t("bodyFontSize")} type="number" value={form.bodyFontSize} onChange={value => onFieldChange("bodyFontSize", value)} min={8} max={36} step={1} /></div>
         </div>
       </div>
       <div className="option-group">

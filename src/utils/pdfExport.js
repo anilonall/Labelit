@@ -2,6 +2,7 @@ import { jsPDF } from "jspdf";
 import JsBarcode from "jsbarcode";
 import QRCode from "qrcode";
 import { getTranslator } from "../constants/i18n";
+import { getFontOption } from "../constants/typography";
 import { hexToRgb, hexToRgbaHex } from "./colors";
 import { getPrimaryStats, getSecondaryStats } from "./formatters";
 import { mmToInch } from "./helpers";
@@ -49,7 +50,7 @@ async function buildQrImage(value, enabled) {
   return QRCode.toDataURL(value || "0000000000", { width: 180, margin: 0 });
 }
 
-function drawTextBlock(pdf, title, strongText, bodyText, x, y, width, textRgb, highlight, accentColor) {
+function drawTextBlock(pdf, title, strongText, bodyText, x, y, width, textRgb, highlight, accentColor, sizes, fontName) {
   const pad = 0.12;
   const left = x + pad;
   const right = x + width - pad;
@@ -60,20 +61,20 @@ function drawTextBlock(pdf, title, strongText, bodyText, x, y, width, textRgb, h
   }
 
   pdf.setTextColor(...textRgb);
-  pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(7);
+  pdf.setFont(fontName, "bold");
+  pdf.setFontSize(sizes.heading);
   pdf.text(title, left, y + 0.12);
-  pdf.setFontSize(highlight ? 13 : 10);
+  pdf.setFontSize(highlight ? sizes.recipient : sizes.strong);
   pdf.text(String(strongText || "-"), left, y + 0.28);
-  pdf.setFont("helvetica", "normal");
-  pdf.setFontSize(8);
+  pdf.setFont(fontName, "normal");
+  pdf.setFontSize(sizes.body);
   const lines = wrapText(pdf, bodyText || "-", (right - left) * 72);
   pdf.text(lines, left, y + 0.43);
   pdf.line(left, y + 0.78, right, y + 0.78);
   return y + 0.88;
 }
 
-function drawMetaGrid(pdf, stats, x, y, w, pad) {
+function drawMetaGrid(pdf, stats, x, y, w, pad, sizes, fontName) {
   if (!stats.length) {
     return y;
   }
@@ -82,11 +83,11 @@ function drawMetaGrid(pdf, stats, x, y, w, pad) {
   pdf.line(x + pad, y, x + w - pad, y);
   stats.forEach((stat, index) => {
     const sx = x + pad + (statWidth * index);
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(7);
+    pdf.setFont(fontName, "bold");
+    pdf.setFontSize(sizes.heading);
     pdf.text(stat[0], sx + 0.03, y + 0.14);
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(8);
+    pdf.setFont(fontName, "normal");
+    pdf.setFontSize(sizes.metaValue);
     pdf.text(String(stat[1] || "-"), sx + 0.03, y + 0.28);
     if (index < stats.length - 1) {
       pdf.line(sx + statWidth, y, sx + statWidth, y + 0.36);
@@ -101,6 +102,17 @@ function drawVectorLabelWithAssets(pdf, state, x, y, w, h, barcodeData, qrData) 
   const border = hexToRgb(state.borderColor);
   const text = hexToRgb(state.textColor);
   const t = getTranslator(state.uiLanguage || "tr");
+  const fontOption = getFontOption(state.fontFamily);
+  const fontName = fontOption.pdf;
+  const sizes = {
+    brand: Math.max(10, Number(state.brandFontSize) * 0.6),
+    title: Math.max(8, Number(state.titleFontSize) * 0.7),
+    heading: Math.max(6, Number(state.headingFontSize) * 0.7),
+    strong: Math.max(8, Number(state.bodyFontSize) * 0.78),
+    recipient: Math.max(10, Number(state.bodyFontSize) * 1.02),
+    body: Math.max(6, Number(state.bodyFontSize) * 0.62),
+    metaValue: Math.max(6, Number(state.bodyFontSize) * 0.62)
+  };
 
   pdf.setFillColor(...hexToRgb(state.backgroundColor));
   pdf.setDrawColor(...border);
@@ -113,14 +125,14 @@ function drawVectorLabelWithAssets(pdf, state, x, y, w, h, barcodeData, qrData) 
     pdf.addImage(state.logoDataUrl, "PNG", x + pad, cursorY, 0.7, 0.28, undefined, "FAST");
   } else {
     pdf.setTextColor(...accent);
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(18);
+    pdf.setFont(fontName, "bold");
+    pdf.setFontSize(sizes.brand);
     pdf.text(state.brandName, x + pad, cursorY + 0.13);
   }
 
   pdf.setTextColor(...accent);
-  pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(9);
+  pdf.setFont(fontName, "bold");
+  pdf.setFontSize(sizes.title);
   pdf.text(state.labelTitle, x + w - pad, cursorY + 0.12, { align: "right" });
 
   cursorY += 0.3;
@@ -139,7 +151,9 @@ function drawVectorLabelWithAssets(pdf, state, x, y, w, h, barcodeData, qrData) 
       w,
       text,
       false,
-      state.accentColor
+      state.accentColor,
+      sizes,
+      fontName
     );
   }
 
@@ -154,15 +168,17 @@ function drawVectorLabelWithAssets(pdf, state, x, y, w, h, barcodeData, qrData) 
       w,
       text,
       state.highlightRecipient,
-      state.accentColor
+      state.accentColor,
+      sizes,
+      fontName
     );
   }
 
   const stats = getPrimaryStats(state);
-  cursorY = drawMetaGrid(pdf, stats, x, cursorY, w, pad);
+  cursorY = drawMetaGrid(pdf, stats, x, cursorY, w, pad, sizes, fontName);
 
   const secondaryStats = getSecondaryStats(state);
-  cursorY = drawMetaGrid(pdf, secondaryStats, x, cursorY, w, pad);
+  cursorY = drawMetaGrid(pdf, secondaryStats, x, cursorY, w, pad, sizes, fontName);
 
   if (state.showBarcode) {
     pdf.addImage(barcodeData, "PNG", x + pad, cursorY + 0.05, w - (pad * 2), 0.8, undefined, "FAST");
@@ -179,11 +195,11 @@ function drawVectorLabelWithAssets(pdf, state, x, y, w, h, barcodeData, qrData) 
   }
 
   if (state.showNote) {
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(7);
+    pdf.setFont(fontName, "bold");
+    pdf.setFontSize(sizes.heading);
     pdf.text(t("labelNote"), x + pad + (state.showQr ? 0.82 : 0), cursorY + 0.12);
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(8);
+    pdf.setFont(fontName, "normal");
+    pdf.setFontSize(sizes.body);
     const noteLines = wrapText(pdf, state.note || "-", (w - (pad * 2) - (state.showQr ? 0.9 : 0)) * 72);
     pdf.text(noteLines, x + pad + (state.showQr ? 0.82 : 0), cursorY + 0.25);
   }

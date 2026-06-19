@@ -716,6 +716,7 @@ button:disabled {
   border-radius: 16px;
   box-shadow: 0 28px 80px rgba(0, 0, 0, 0.2);
   overflow: hidden;
+  font-family: var(--label-font-family, "Segoe UI", sans-serif);
 }
 
 .label.compact {
@@ -933,7 +934,7 @@ button:disabled {
 }
 
 .logo {
-  font-size: 30px;
+  font-size: var(--brand-font-size, 30px);
   font-weight: 900;
   letter-spacing: 0.04em;
 }
@@ -945,7 +946,7 @@ button:disabled {
 }
 
 .cargo {
-  font-size: 13px;
+  font-size: var(--title-font-size, 13px);
   font-weight: 700;
   letter-spacing: 0.16em;
   text-align: right;
@@ -964,24 +965,24 @@ button:disabled {
 .grid small,
 .bottom small {
   display: block;
-  font-size: 10px;
+  font-size: var(--heading-font-size, 10px);
   font-weight: 700;
   letter-spacing: 0.08em;
 }
 
 .block strong {
-  font-size: 18px;
+  font-size: calc(var(--body-font-size, 13px) + 5px);
 }
 
 .block p {
   margin: 5px 0 0;
   white-space: pre-line;
-  font-size: 13px;
+  font-size: var(--body-font-size, 13px);
   line-height: 1.35;
 }
 
 .recipient strong {
-  font-size: 24px;
+  font-size: calc(var(--body-font-size, 13px) + 11px);
 }
 
 .recipient.highlighted {
@@ -1010,7 +1011,7 @@ button:disabled {
 .grid strong {
   display: block;
   margin-top: 5px;
-  font-size: 12px;
+  font-size: calc(var(--body-font-size, 13px) - 1px);
 }
 
 #barcode {
@@ -1042,7 +1043,7 @@ button:disabled {
 
 .bottom p {
   margin: 5px 0 0;
-  font-size: 13px;
+  font-size: var(--body-font-size, 13px);
   line-height: 1.35;
 }
 
