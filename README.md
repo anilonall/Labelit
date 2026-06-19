@@ -1,4 +1,3 @@
-````md
 # 🏷️ Labelit
 
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)
@@ -25,16 +24,17 @@ https://github.com/anilonall/Labelit
 
 ## Labelit Nedir?
 
-Labelit, etiket tasarlamayı, düzenlemeyi ve yazdırmayı kolaylaştırmak amacıyla geliştirilen React tabanlı modern bir web uygulamasıdır.
+Labelit, etiket oluşturma, düzenleme, önizleme ve yazdırma işlemlerini kolaylaştırmak amacıyla geliştirilen React ve Vite tabanlı modern bir web uygulamasıdır.
 
 Uygulama sayesinde;
 
 - Yeni etiket oluşturabilirsiniz.
 - Mevcut etiketleri düzenleyebilirsiniz.
 - Yazı alanlarını değiştirebilirsiniz.
-- Barkod ve QR Kod oluşturabilirsiniz.
+- Barkod oluşturabilirsiniz.
+- QR Kod oluşturabilirsiniz.
 - Yazdırmadan önce önizleme yapabilirsiniz.
-- Etiketleri PDF olarak kaydedebilirsiniz.
+- Etiketleri PDF olarak dışa aktarabilirsiniz.
 - Etiketleri doğrudan yazıcıya gönderebilirsiniz.
 
 ## Özellikler
@@ -48,7 +48,7 @@ Uygulama sayesinde;
 - ✅ Yazdırma desteği
 - ✅ Modern ve responsive arayüz
 
-## Teknolojiler
+## Kullanılan Teknolojiler
 
 - React
 - Vite
@@ -60,15 +60,12 @@ Uygulama sayesinde;
 
 ```bash
 git clone https://github.com/anilonall/Labelit.git
-
 cd Labelit
-
 npm install
-
 npm run dev
 ```
 
-Uygulama varsayılan olarak aşağıdaki adreste çalışacaktır:
+Uygulama varsayılan olarak aşağıdaki adreste çalışacaktır.
 
 ```
 http://localhost:5173
@@ -80,15 +77,15 @@ http://localhost:5173
 
 ## What is Labelit?
 
-Labelit is a modern React-based web application designed to simplify label creation, editing, previewing, and printing.
+Labelit is a modern React and Vite based web application designed to simplify label creation, editing, previewing, and printing.
 
 With Labelit you can:
 
 - Create new labels
 - Edit existing labels
 - Customize text fields
-- Generate Barcodes
-- Generate QR Codes
+- Generate barcodes
+- Generate QR codes
 - Preview labels before printing
 - Export labels as PDF
 - Print labels directly from your browser
@@ -98,8 +95,8 @@ With Labelit you can:
 - ✅ Label Creation
 - ✅ Label Editing
 - ✅ Dynamic Fields
-- ✅ Barcode Generator
-- ✅ QR Code Generator
+- ✅ Barcode Generation
+- ✅ QR Code Generation
 - ✅ PDF Export
 - ✅ Direct Printing
 - ✅ Modern Responsive UI
@@ -116,11 +113,8 @@ With Labelit you can:
 
 ```bash
 git clone https://github.com/anilonall/Labelit.git
-
 cd Labelit
-
 npm install
-
 npm run dev
 ```
 
@@ -132,31 +126,36 @@ http://localhost:5173
 
 ---
 
-## Roadmap
+## 🚀 Roadmap
 
-- [x] Label Editor
-- [x] PDF Export
-- [x] Print Support
-- [x] Barcode Generation
-- [x] QR Code Generation
-- [ ] Multiple Label Templates
-- [ ] Drag & Drop Editor
-- [ ] ZPL Export
-- [ ] Zebra Printer Support
-- [ ] Save & Load Templates
-- [ ] Custom Fonts and Images
+- [x] Label editor
+- [x] PDF export
+- [x] Print support
+- [x] Barcode generation
+- [x] QR code generation
+- [ ] Multiple label templates
+- [ ] Drag & Drop editor
+- [ ] ZPL export
+- [ ] Zebra printer support
+- [ ] Save & Load templates
+- [ ] Custom fonts and images
 
 ---
 
-## License
+## 🤝 Contributing
+
+Contributions, feature requests, and suggestions are always welcome. Feel free to fork the repository and submit a pull request.
+
+---
+
+## 📄 License
 
 This project is licensed under the MIT License.
 
 ---
 
-## Author
+## 👨‍💻 Author
 
 **Anıl Önal**
 
 GitHub: https://github.com/anilonall
-````
