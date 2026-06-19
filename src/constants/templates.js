@@ -5,9 +5,9 @@ export const builtInTemplateKeys = ["blank", "shipping", "cargo", "receiving", "
 export const baseTemplates = {
   shipping: {
     name: "Sevkiyat Etiketi",
-    description: "Sevk ve dagitim surecleri icin genel cikis etiketi.",
+    description: "Sevk ve dağıtım süreçleri için genel çıkış etiketi.",
     brandName: "",
-    labelTitle: "SEVKIYAT ETIKETI",
+    labelTitle: "SEVKİYAT ETİKETİ",
     accentColor: "#f97316",
     backgroundColor: "#ffffff",
     textColor: "#111111",
@@ -52,9 +52,9 @@ export const baseTemplates = {
   },
   cargo: {
     name: "Kargo Etiketi",
-    description: "Teslimat ve kurye akislarina uygun standart kargo duzeni.",
+    description: "Teslimat ve kurye akışlarına uygun standart kargo düzeni.",
     brandName: "",
-    labelTitle: "KARGO ETIKETI",
+    labelTitle: "KARGO ETİKETİ",
     accentColor: "#0f766e",
     backgroundColor: "#f8fafc",
     textColor: "#0f172a",
@@ -99,9 +99,9 @@ export const baseTemplates = {
   },
   receiving: {
     name: "Mal Kabul Etiketi",
-    description: "Gelen urun kontrol ve kabul operasyonlari icin net alanlar.",
+    description: "Gelen ürün kontrol ve kabul operasyonları için net alanlar.",
     brandName: "",
-    labelTitle: "MAL KABUL ETIKETI",
+    labelTitle: "MAL KABUL ETİKETİ",
     accentColor: "#7c3aed",
     backgroundColor: "#fcfbff",
     textColor: "#2e1065",
@@ -145,10 +145,10 @@ export const baseTemplates = {
     logoDataUrl: ""
   },
   return: {
-    name: "Iade Etiketi",
-    description: "Iade urunlerin ayrisma ve geri kabul surecleri icin.",
+    name: "İade Etiketi",
+    description: "İade ürünlerin ayrışma ve geri kabul süreçleri için.",
     brandName: "",
-    labelTitle: "IADE ETIKETI",
+    labelTitle: "İADE ETİKETİ",
     accentColor: "#dc2626",
     backgroundColor: "#ffffff",
     textColor: "#111827",
@@ -193,9 +193,9 @@ export const baseTemplates = {
   },
   transfer: {
     name: "Depo Transfer Etiketi",
-    description: "Depolar arasi urun hareketleri ve lokasyon transferleri icin.",
+    description: "Depolar arası ürün hareketleri ve lokasyon transferleri için.",
     brandName: "",
-    labelTitle: "DEPO TRANSFER ETIKETI",
+    labelTitle: "DEPO TRANSFER ETİKETİ",
     accentColor: "#1d4ed8",
     backgroundColor: "#f8fbff",
     textColor: "#0f172a",
@@ -240,9 +240,9 @@ export const baseTemplates = {
   },
   pallet: {
     name: "Palet Etiketi",
-    description: "Palet takibi, saha sevki ve buyuk hacimli yuklemeler icin.",
+    description: "Palet takibi, saha sevki ve büyük hacimli yüklemeler için.",
     brandName: "",
-    labelTitle: "PALET ETIKETI",
+    labelTitle: "PALET ETİKETİ",
     accentColor: "#0f766e",
     backgroundColor: "#ffffff",
     textColor: "#111827",
@@ -288,8 +288,8 @@ export const baseTemplates = {
 };
 
 export const blankTemplate = {
-  name: "Bos Etiket",
-  description: "Sifirdan baslamak icin temiz alan.",
+  name: "Boş Etiket",
+  description: "Sıfırdan başlamak için temiz alan.",
   brandName: "",
   labelTitle: "SHIPPING LABEL",
   accentColor: "#f97316",
