@@ -1,4 +1,10 @@
+````md
 # 🏷️ Labelit
+
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)
+![Vite](https://img.shields.io/badge/Vite-7-646CFF?logo=vite)
+![Status](https://img.shields.io/badge/Status-Under%20Development-orange)
+![License](https://img.shields.io/badge/License-MIT-green)
 
 A modern React application for creating, editing, previewing, and printing shipping and product labels.
 
@@ -7,11 +13,19 @@ https://github.com/anilonall/Labelit
 
 ---
 
+> 🚧 **Project Status / Proje Durumu**
+>
+> **🇹🇷** Bu proje aktif olarak geliştirilmektedir. Yeni özellikler, iyileştirmeler ve yeni etiket şablonları düzenli olarak eklenmektedir. Geri bildirimler ve katkılar memnuniyetle karşılanır.
+>
+> **🇬🇧** This project is currently under active development. New features, improvements, and additional label templates are being added regularly. Feedback and contributions are welcome.
+
+---
+
 # 🇹🇷 Türkçe
 
 ## Labelit Nedir?
 
-Labelit, etiket tasarlamayı ve yazdırmayı kolaylaştırmak amacıyla geliştirilen React tabanlı bir web uygulamasıdır.
+Labelit, etiket tasarlamayı, düzenlemeyi ve yazdırmayı kolaylaştırmak amacıyla geliştirilen React tabanlı modern bir web uygulamasıdır.
 
 Uygulama sayesinde;
 
@@ -37,6 +51,7 @@ Uygulama sayesinde;
 ## Teknolojiler
 
 - React
+- Vite
 - JavaScript
 - HTML5
 - CSS3
@@ -50,16 +65,14 @@ cd Labelit
 
 npm install
 
-npm start
+npm run dev
 ```
 
-Uygulama varsayılan olarak:
+Uygulama varsayılan olarak aşağıdaki adreste çalışacaktır:
 
 ```
 http://localhost:5173
 ```
-
-adresinde çalışacaktır.
 
 ---
 
@@ -67,7 +80,7 @@ adresinde çalışacaktır.
 
 ## What is Labelit?
 
-Labelit is a React-based web application designed to simplify label creation, editing, previewing, and printing.
+Labelit is a modern React-based web application designed to simplify label creation, editing, previewing, and printing.
 
 With Labelit you can:
 
@@ -94,6 +107,7 @@ With Labelit you can:
 ## Technologies
 
 - React
+- Vite
 - JavaScript
 - HTML5
 - CSS3
@@ -107,10 +121,10 @@ cd Labelit
 
 npm install
 
-npm start
+npm run dev
 ```
 
-The application will run at:
+The application will be available at:
 
 ```
 http://localhost:5173
@@ -118,14 +132,31 @@ http://localhost:5173
 
 ---
 
-## License
+## Roadmap
 
-MIT License
+- [x] Label Editor
+- [x] PDF Export
+- [x] Print Support
+- [x] Barcode Generation
+- [x] QR Code Generation
+- [ ] Multiple Label Templates
+- [ ] Drag & Drop Editor
+- [ ] ZPL Export
+- [ ] Zebra Printer Support
+- [ ] Save & Load Templates
+- [ ] Custom Fonts and Images
 
 ---
 
-### Author
+## License
+
+This project is licensed under the MIT License.
+
+---
+
+## Author
 
 **Anıl Önal**
 
 GitHub: https://github.com/anilonall
+````
