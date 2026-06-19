@@ -124,6 +124,7 @@ function App() {
   const logoInputRef = useRef(null);
   const templateInputRef = useRef(null);
   const scannerInputRef = useRef(null);
+  const panelRef = useRef(null);
 
   const { printableState, stats } = buildMergedForm(form);
   const layout = form.printMode === "thermal" ? "single" : form.sheetLayout;
@@ -185,6 +186,18 @@ function App() {
   }, [templates]);
 
   useEffect(() => () => window.clearTimeout(scannerTimerRef.current), []);
+
+  useEffect(() => {
+    if (showStartupOverlay) {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      if (panelRef.current) {
+        panelRef.current.scrollTop = 0;
+      }
+    });
+  }, [showStartupOverlay]);
 
   const updateField = (key, value) => {
     setForm(current => {
@@ -258,13 +271,11 @@ function App() {
     });
     scannerValueRef.current = "";
     setScannerInput("");
-    window.requestAnimationFrame(() => scannerInputRef.current?.focus());
   };
 
   const startWithTemplate = key => {
     applyTemplate(key);
     setShowStartupOverlay(false);
-    window.requestAnimationFrame(() => scannerInputRef.current?.focus());
   };
 
   const startWithBlankLabel = () => {
@@ -506,7 +517,7 @@ function App() {
       )}
 
       <div className="app">
-        <aside className="panel">
+        <aside ref={panelRef} className="panel">
           <div className="panel-header">
             <p className="eyebrow">Etiket Tasarim Studyo</p>
             <h1>Shipping Label</h1>
