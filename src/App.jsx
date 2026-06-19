@@ -11,7 +11,7 @@ import { useCodeAssets } from "./hooks/useCodeAssets";
 import { usePreviewTransform } from "./hooks/usePreviewTransform";
 import { useSheetFrame } from "./hooks/useSheetFrame";
 import { formatDeliveryTime, formatMeasurement } from "./utils/formatters";
-import { clamp, safe, slugify } from "./utils/helpers";
+import { safe, slugify } from "./utils/helpers";
 import { createPdfDocument } from "./utils/pdfExport";
 import { isBuiltInTemplate, loadTemplates, persistCustomTemplates } from "./utils/templateStorage";
 
@@ -443,7 +443,8 @@ function App() {
   };
 
   const changeSize = value => {
-    setScale(current => clamp(current + value * 0.05, 0.5, 1.5));
+    const zoomFactor = 1.15;
+    setScale(current => (value > 0 ? current * zoomFactor : current / zoomFactor));
   };
 
   const startDrag = event => {
@@ -532,6 +533,8 @@ function App() {
             logoInputRef={logoInputRef}
             onFieldChange={updateField}
             onLogoUpload={handleLogoUpload}
+            onZoomIn={() => changeSize(1)}
+            onZoomOut={() => changeSize(-1)}
           />
 
           <ContentSection
@@ -541,8 +544,6 @@ function App() {
 
           <ExportSection
             zplOutput={zplOutput}
-            onZoomIn={() => changeSize(1)}
-            onZoomOut={() => changeSize(-1)}
             onDownloadPdf={downloadPdf}
             onPrint={() => window.print()}
             onExportZpl={exportZpl}

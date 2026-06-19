@@ -16,7 +16,7 @@ function ToggleGroup({ title, items, form, onFieldChange }) {
   );
 }
 
-export function BrandSection({ form, logoStatus, logoInputRef, onFieldChange, onLogoUpload }) {
+export function BrandSection({ form, logoStatus, logoInputRef, onFieldChange, onLogoUpload, onZoomIn, onZoomOut }) {
   return (
     <section className="panel-section">
       <h2>Marka ve Gorunum</h2>
@@ -43,6 +43,13 @@ export function BrandSection({ form, logoStatus, logoInputRef, onFieldChange, on
             <option value="comfortable">Rahat</option>
             <option value="compact">Kompakt</option>
           </select>
+        </div>
+      </div>
+      <div className="option-group">
+        <h3>Onizleme Boyutu</h3>
+        <div className="row tight-row">
+          <button type="button" onClick={onZoomIn}>+ Buyut</button>
+          <button type="button" onClick={onZoomOut}>- Kucult</button>
         </div>
       </div>
       <ToggleGroup
