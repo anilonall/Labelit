@@ -9,10 +9,15 @@ import { TemplateSection } from "./components/TemplateSection";
 import { blankTemplate, buildInitialForm, presetSizes } from "./constants/templates";
 import { useCodeAssets } from "./hooks/useCodeAssets";
 import { usePreviewTransform } from "./hooks/usePreviewTransform";
+import { useSheetFrame } from "./hooks/useSheetFrame";
 import { formatDeliveryTime, formatMeasurement } from "./utils/formatters";
 import { clamp, safe, slugify } from "./utils/helpers";
 import { createPdfDocument } from "./utils/pdfExport";
 import { isBuiltInTemplate, loadTemplates, persistCustomTemplates } from "./utils/templateStorage";
+
+function normalizeSheetLayout(value) {
+  return value === "single" ? "single" : "single";
+}
 
 function collectContentState(form) {
   return {
@@ -81,6 +86,7 @@ function saveTemplateFile(payload) {
 }
 
 function buildMergedForm(form) {
+  const normalizedSheetLayout = normalizeSheetLayout(form.sheetLayout);
   const weightText = formatMeasurement(form.weightValue, form.weightUnit);
   const distanceText = formatMeasurement(form.distanceValue, form.distanceUnit);
   const deliveryTimeText = formatDeliveryTime(form.deliveryTime);
@@ -89,6 +95,7 @@ function buildMergedForm(form) {
   return {
     printableState: {
       ...form,
+      sheetLayout: normalizedSheetLayout,
       weight: weightText,
       distance: distanceText,
       deliveryTime: deliveryTimeText,
@@ -121,6 +128,7 @@ function App() {
   const barcodeRef = useRef(null);
   const labelRef = useRef(null);
   const activeSlotRef = useRef(null);
+  const sheetPreviewRef = useRef(null);
   const logoInputRef = useRef(null);
   const templateInputRef = useRef(null);
   const scannerInputRef = useRef(null);
@@ -128,13 +136,15 @@ function App() {
 
   const { printableState, stats } = buildMergedForm(form);
   const layout = form.printMode === "thermal" ? "single" : form.sheetLayout;
-  const slotCount = layout === "single" ? 1 : layout === "2x2" ? 4 : 6;
+  const slotCount = 1;
   const previewModeTitle = form.printMode === "thermal" ? "Termal Etiket" : "A4 Sayfa Onizlemesi";
   const previewModeCopy = form.printMode === "thermal"
     ? `${Number(form.labelWidthMm).toFixed(1)} x ${Number(form.labelHeightMm).toFixed(1)} mm termal cikti gorunumu.`
-    : `A4 sayfada ${form.sheetLayout} yerlesimi, ${form.pageMarginTop} mm ust ve ${form.pageMarginSide} mm yan bosluk.`;
+    : `A4 sayfada tek etiket yerlesimi, ${form.pageMarginTop} mm ust ve ${form.pageMarginSide} mm yan bosluk.`;
   const logoStatus = form.logoDataUrl ? "Logo gorseli yuklendi." : "Su an yazi logosu kullaniliyor.";
   const hasCustomTemplates = Object.keys(templates).some(key => !isBuiltInTemplate(key));
+  const customTemplateEntries = Object.entries(templates).filter(([key]) => !isBuiltInTemplate(key));
+  const visibleTemplates = customTemplateEntries;
 
   const previewTransform = usePreviewTransform({
     activeSlotRef,
@@ -181,6 +191,11 @@ function App() {
     showQr: form.showQr
   });
 
+  const sheetPageStyle = useSheetFrame({
+    sheetPreviewRef,
+    printMode: form.printMode
+  });
+
   useEffect(() => {
     persistCustomTemplates(templates);
   }, [templates]);
@@ -202,6 +217,7 @@ function App() {
   const updateField = (key, value) => {
     setForm(current => {
       const next = { ...current, [key]: value };
+      next.sheetLayout = normalizeSheetLayout(next.sheetLayout);
 
       if (key === "sizePreset") {
         const preset = presetSizes[value];
@@ -241,12 +257,13 @@ function App() {
     setForm(current => ({
       ...current,
       templateName: template.name || "Benim Sablonum",
-      ...template
+      ...template,
+      sheetLayout: normalizeSheetLayout(template.sheetLayout)
     }));
   };
 
   const applyBlankTemplate = () => {
-    setActiveTemplate("shipping");
+    setActiveTemplate("blank");
     setScale(1);
     setPreviewOffset({ x: 0, y: 0 });
     setForm({
@@ -396,7 +413,8 @@ function App() {
       ...styleState,
       ...contentState,
       templateName: styleState.name || styleState.templateName || form.templateName,
-      logoDataUrl: styleState.logoDataUrl || ""
+      logoDataUrl: styleState.logoDataUrl || "",
+      sheetLayout: normalizeSheetLayout(styleState.sheetLayout || form.sheetLayout)
     };
 
     setForm(merged);
@@ -520,12 +538,12 @@ function App() {
         <aside ref={panelRef} className="panel">
           <div className="panel-header">
             <p className="eyebrow">Etiket Tasarim Studyo</p>
-            <h1>Shipping Label</h1>
+            <h1>{form.templateName || "Shipping Label"}</h1>
             <p className="panel-copy">A4 onizleme, okutucu girisi, coklu etiket listesi ve sablon kutuphanesi ile baskiya hazir etiket uret.</p>
           </div>
 
           <TemplateSection
-            templates={templates}
+            visibleTemplates={visibleTemplates}
             activeTemplate={activeTemplate}
             isBuiltInTemplate={isBuiltInTemplate}
             templateName={form.templateName}
@@ -576,6 +594,8 @@ function App() {
           form={form}
           layout={layout}
           slotCount={slotCount}
+          sheetPreviewRef={sheetPreviewRef}
+          sheetPageStyle={sheetPageStyle}
           activeSlotRef={activeSlotRef}
           labelRef={labelRef}
           barcodeRef={barcodeRef}

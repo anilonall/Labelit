@@ -4,6 +4,8 @@ export function PreviewPane({
   form,
   layout,
   slotCount,
+  sheetPreviewRef,
+  sheetPageStyle,
   activeSlotRef,
   labelRef,
   barcodeRef,
@@ -24,10 +26,11 @@ export function PreviewPane({
         <p className="panel-copy compact-copy">{previewModeCopy}</p>
       </div>
 
-      <section className="sheet-preview">
+      <section ref={sheetPreviewRef} className="sheet-preview">
         <div
           className={`sheet-page layout-${layout} ${form.printMode === "thermal" ? "thermal-stage" : ""}`}
           style={{
+            ...sheetPageStyle,
             paddingTop: form.printMode === "thermal" ? "24px" : `${Math.max(4, Number(form.pageMarginTop) / 2)}%`,
             paddingLeft: form.printMode === "thermal" ? "24px" : `${Math.max(4, Number(form.pageMarginSide) / 2)}%`,
             paddingRight: form.printMode === "thermal" ? "24px" : `${Math.max(4, Number(form.pageMarginSide) / 2)}%`,

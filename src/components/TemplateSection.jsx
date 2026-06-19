@@ -1,5 +1,5 @@
 export function TemplateSection({
-  templates,
+  visibleTemplates,
   activeTemplate,
   isBuiltInTemplate,
   templateName,
@@ -30,14 +30,19 @@ export function TemplateSection({
         <button type="button" onClick={onSaveToLibrary}>Kutuphane'ye Ekle</button>
         <button type="button" className="ghost-button" onClick={onClearLibrary} disabled={!hasCustomTemplates}>Kutuphane Temizle</button>
       </div>
-      <div className="template-grid">
-        {Object.entries(templates).map(([key, template]) => (
-          <button key={key} type="button" className={`template-card ${activeTemplate === key ? "active" : ""}`} onClick={() => onApplyTemplate(key)}>
-            <strong>{template.name}</strong>
-            <span>{template.description}</span>
-          </button>
-        ))}
-      </div>
+      <label>Kaydedilen Sablonlar</label>
+      {visibleTemplates.length ? (
+        <div className="template-grid">
+          {visibleTemplates.map(([key, template]) => (
+            <button key={key} type="button" className={`template-card ${activeTemplate === key ? "active" : ""}`} onClick={() => onApplyTemplate(key)}>
+              <strong>{template.name}</strong>
+              <span>{template.description}</span>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <p className="scan-hint">Henuz kaydedilmis veya yuklenmis sablon yok.</p>
+      )}
       <input ref={templateInputRef} type="file" accept="application/json,.json" className="hidden" onChange={onTemplateFileChange} />
     </section>
   );

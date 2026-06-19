@@ -1,6 +1,6 @@
 export const LIBRARY_KEY = "label-template-library-v1";
 
-export const builtInTemplateKeys = ["shipping", "cargo", "receiving", "return", "transfer", "pallet"];
+export const builtInTemplateKeys = ["blank", "shipping", "cargo", "receiving", "return", "transfer", "pallet"];
 
 export const presetSizes = {
   "4x6": { width: 101.6, height: 152.4 },
@@ -13,7 +13,7 @@ export const baseTemplates = {
   shipping: {
     name: "Sevkiyat Etiketi",
     description: "Sevk ve dagitim surecleri icin genel cikis etiketi.",
-    brandName: "S4IN",
+    brandName: "",
     labelTitle: "SEVKIYAT ETIKETI",
     accentColor: "#f97316",
     backgroundColor: "#ffffff",
@@ -42,7 +42,7 @@ export const baseTemplates = {
   cargo: {
     name: "Kargo Etiketi",
     description: "Teslimat ve kurye akislarina uygun standart kargo duzeni.",
-    brandName: "CARGO",
+    brandName: "",
     labelTitle: "KARGO ETIKETI",
     accentColor: "#0f766e",
     backgroundColor: "#f8fafc",
@@ -59,7 +59,7 @@ export const baseTemplates = {
     showDistance: true,
     showDeliveryTime: true,
     printMode: "a4",
-    sheetLayout: "2x2",
+    sheetLayout: "single",
     sizePreset: "100x150",
     labelWidthMm: 100,
     labelHeightMm: 150,
@@ -71,7 +71,7 @@ export const baseTemplates = {
   receiving: {
     name: "Mal Kabul Etiketi",
     description: "Gelen urun kontrol ve kabul operasyonlari icin net alanlar.",
-    brandName: "RECEIVING",
+    brandName: "",
     labelTitle: "MAL KABUL ETIKETI",
     accentColor: "#7c3aed",
     backgroundColor: "#fcfbff",
@@ -100,7 +100,7 @@ export const baseTemplates = {
   return: {
     name: "Iade Etiketi",
     description: "Iade urunlerin ayrisma ve geri kabul surecleri icin.",
-    brandName: "RETURN",
+    brandName: "",
     labelTitle: "IADE ETIKETI",
     accentColor: "#dc2626",
     backgroundColor: "#ffffff",
@@ -117,7 +117,7 @@ export const baseTemplates = {
     showDistance: true,
     showDeliveryTime: true,
     printMode: "a4",
-    sheetLayout: "3x2",
+    sheetLayout: "single",
     sizePreset: "4x6",
     labelWidthMm: 101.6,
     labelHeightMm: 152.4,
@@ -129,7 +129,7 @@ export const baseTemplates = {
   transfer: {
     name: "Depo Transfer Etiketi",
     description: "Depolar arasi urun hareketleri ve lokasyon transferleri icin.",
-    brandName: "TRANSFER",
+    brandName: "",
     labelTitle: "DEPO TRANSFER ETIKETI",
     accentColor: "#1d4ed8",
     backgroundColor: "#f8fbff",
@@ -146,7 +146,7 @@ export const baseTemplates = {
     showDistance: true,
     showDeliveryTime: true,
     printMode: "a4",
-    sheetLayout: "2x2",
+    sheetLayout: "single",
     sizePreset: "4x6",
     labelWidthMm: 101.6,
     labelHeightMm: 152.4,
@@ -158,7 +158,7 @@ export const baseTemplates = {
   pallet: {
     name: "Palet Etiketi",
     description: "Palet takibi, saha sevki ve buyuk hacimli yuklemeler icin.",
-    brandName: "PALLET",
+    brandName: "",
     labelTitle: "PALET ETIKETI",
     accentColor: "#0f766e",
     backgroundColor: "#ffffff",
@@ -175,7 +175,7 @@ export const baseTemplates = {
     showDistance: true,
     showDeliveryTime: true,
     printMode: "a4",
-    sheetLayout: "2x2",
+    sheetLayout: "single",
     sizePreset: "100x150",
     labelWidthMm: 100,
     labelHeightMm: 150,
@@ -217,21 +217,21 @@ export const blankTemplate = {
 };
 
 export const defaultContent = {
-  senderName: "S4IN Teknoloji A.S.",
-  senderAddress: "Mansuroglu Mah. 286/1 Sok.\nBayrakli / Izmir\nTurkiye 35535",
-  recipientName: "Anil Onal",
-  recipientAddress: "Ataturk Mah. 1205 Sok. No:15\nBornova / Izmir\n35040 Turkiye",
-  orderNo: "S4IN-20260618-000128",
-  reference: "INV-20260618-1452",
-  weightValue: "2.35",
+  senderName: "",
+  senderAddress: "",
+  recipientName: "",
+  recipientAddress: "",
+  orderNo: "",
+  reference: "",
+  weightValue: "",
   weightUnit: "KG",
-  distanceValue: "24.5",
+  distanceValue: "",
   distanceUnit: "KM",
-  deliveryTime: "2026-06-18T14:30",
-  deliveryType: "Ayni Gun",
-  deliveryWindow: "2 Saat Icinde",
-  barcodeText: "869123456789012345678901",
-  note: "Kargo guvenlige teslim edilebilir."
+  deliveryTime: "",
+  deliveryType: "",
+  deliveryWindow: "",
+  barcodeText: "",
+  note: ""
 };
 
 export function buildInitialForm() {

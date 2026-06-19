@@ -31,7 +31,9 @@ export function LabelPreview({
     >
       <div className="top">
         <div className="logo-wrap">
-          {form.logoDataUrl ? <img className="logo-image" alt="Logo" src={form.logoDataUrl} /> : <div className="logo" style={{ color: form.accentColor }}>{form.brandName}</div>}
+          {form.logoDataUrl ? <img className="logo-image" alt="Logo" src={form.logoDataUrl} /> : (
+            form.brandName ? <div className="logo" style={{ color: form.accentColor }}>{form.brandName}</div> : null
+          )}
         </div>
         <div className="cargo" style={{ color: form.accentColor }}>{form.labelTitle}</div>
       </div>

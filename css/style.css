@@ -519,7 +519,7 @@ button:disabled {
 
 .sheet-page {
   width: min(100%, 820px);
-  height: auto;
+  height: 100%;
   padding: 5.7%;
   background: #f8fafc;
   border-radius: 18px;
@@ -535,6 +535,7 @@ button:disabled {
 
 .sheet-page.layout-single .sheet-slot.active-slot {
   display: block;
+  min-height: 100%;
 }
 
 .sheet-page.thermal-stage {

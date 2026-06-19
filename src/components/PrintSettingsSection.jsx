@@ -16,8 +16,6 @@ export function PrintSettingsSection({ form, onFieldChange }) {
           <label htmlFor="sheetLayout">Yerlesim</label>
           <select id="sheetLayout" value={form.sheetLayout} onChange={event => onFieldChange("sheetLayout", event.target.value)}>
             <option value="single">Tek Etiket</option>
-            <option value="2x2">2 x 2</option>
-            <option value="3x2">3 x 2</option>
           </select>
         </div>
       </div>

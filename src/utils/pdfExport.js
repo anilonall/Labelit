@@ -177,8 +177,8 @@ export async function createPdfDocument(state) {
   const qrData = await buildQrImage(state.barcodeText || "0000000000", state.showQr);
 
   if (state.printMode === "a4") {
-    const cols = state.sheetLayout === "2x2" ? 2 : state.sheetLayout === "3x2" ? 2 : 1;
-    const rows = state.sheetLayout === "2x2" ? 2 : state.sheetLayout === "3x2" ? 3 : 1;
+    const cols = 1;
+    const rows = 1;
     const labelWidth = mmToInch(state.labelWidthMm);
     const labelHeight = mmToInch(state.labelHeightMm);
     const marginTop = mmToInch(state.pageMarginTop);
