@@ -497,6 +497,10 @@ button:disabled {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.inline-fields.double-stack {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .color-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -525,6 +529,27 @@ button:disabled {
 .template-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-top: 12px;
+}
+
+.custom-fields-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.custom-field-card {
+  padding: 12px;
+  border: 1px solid var(--field-border);
+  border-radius: 16px;
+  background: var(--panel-surface-soft);
+}
+
+.compact-section-head {
+  margin-top: 10px;
+}
+
+.compact-section-head .toggle {
+  margin-right: auto;
 }
 
 .template-card {

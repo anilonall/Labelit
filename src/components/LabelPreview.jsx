@@ -51,6 +51,7 @@ export function LabelPreview({
   const gridColumns = Math.max(1, Number(form.labelWidthMm) / gridStep);
   const gridRows = Math.max(1, Number(form.labelHeightMm) / gridStep);
   const fontOption = getFontOption(form.fontFamily);
+  const visibleCustomFields = (form.customFields || []).filter(field => field.visible !== false && (field.label || field.value));
 
   return (
     <section
@@ -159,6 +160,17 @@ export function LabelPreview({
             {form.showDistance && <div><small>{t("labelDistance")}</small><strong>{distanceText}</strong></div>}
             {form.showDeliveryTime && <div><small>{t("labelDelivery")}</small><strong>{deliveryTimeText}</strong></div>}
             {form.showDeliveryType && <div><small>{t("labelType")}</small><strong>{deliveryTypeText}</strong></div>}
+          </div>
+        )}
+
+        {visibleCustomFields.length > 0 && (
+          <div className={`grid custom-grid ${visibleCustomFields.length <= 1 ? "single-stat" : ""} ${visibleCustomFields.length === 2 ? "two-stats" : ""}`}>
+            {visibleCustomFields.map(field => (
+              <div key={field.id}>
+                <small>{field.label || t("customFieldLabel")}</small>
+                <strong>{field.value}</strong>
+              </div>
+            ))}
           </div>
         )}
 

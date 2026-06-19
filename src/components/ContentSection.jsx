@@ -3,7 +3,10 @@ import { FormField } from "./FormField";
 export function ContentSection({
   form,
   t,
-  onFieldChange
+  onFieldChange,
+  onAddCustomField,
+  onUpdateCustomField,
+  onRemoveCustomField
 }) {
   const visibilityItems = [
     ["showSender", t("senderBlock")],
@@ -105,6 +108,49 @@ export function ContentSection({
           <textarea id="note" value={form.note} onChange={event => onFieldChange("note", event.target.value)} />
         </>
       )}
+
+      <div className="option-group">
+        <div className="section-head">
+          <div>
+            <h3>{t("customFields")}</h3>
+            <p className="scan-hint">{t("customFieldsHint")}</p>
+          </div>
+          <button type="button" className="ghost-button" onClick={onAddCustomField}>{t("addCustomField")}</button>
+        </div>
+        <div className="custom-fields-list">
+          {(form.customFields || []).map(field => (
+            <div key={field.id} className="custom-field-card">
+              <div className="inline-fields">
+                <div>
+                  <FormField
+                    id={`custom-label-${field.id}`}
+                    label={t("customFieldLabel")}
+                    value={field.label}
+                    onChange={value => onUpdateCustomField(field.id, { label: value })}
+                    placeholder={t("customFieldLabelPlaceholder")}
+                  />
+                </div>
+                <div>
+                  <FormField
+                    id={`custom-value-${field.id}`}
+                    label={t("customFieldValue")}
+                    value={field.value}
+                    onChange={value => onUpdateCustomField(field.id, { value })}
+                    placeholder={t("customFieldValuePlaceholder")}
+                  />
+                </div>
+              </div>
+              <div className="section-head compact-section-head">
+                <label className="toggle">
+                  <input type="checkbox" checked={field.visible !== false} onChange={event => onUpdateCustomField(field.id, { visible: event.target.checked })} />
+                  <span>{t("showCustomField")}</span>
+                </label>
+                <button type="button" className="ghost-button danger-button" onClick={() => onRemoveCustomField(field.id)}>{t("removeCustomField")}</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </section>
   );
 }

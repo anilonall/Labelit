@@ -350,7 +350,8 @@ export const defaultContent = {
   deliveryType: "",
   deliveryWindow: "",
   barcodeText: "",
-  note: ""
+  note: "",
+  customFields: []
 };
 
 export function buildInitialForm() {

@@ -22,6 +22,19 @@ function normalizeSheetLayout(value) {
   return value === "single" ? "single" : "single";
 }
 
+function normalizeCustomFields(fields) {
+  if (!Array.isArray(fields)) {
+    return [];
+  }
+
+  return fields.map((field, index) => ({
+    id: field?.id || `custom-field-${Date.now()}-${index}`,
+    label: field?.label || "",
+    value: field?.value || "",
+    visible: field?.visible !== false
+  }));
+}
+
 function collectContentState(form) {
   return {
     senderName: form.senderName,
@@ -38,7 +51,8 @@ function collectContentState(form) {
     deliveryType: form.deliveryType,
     deliveryWindow: form.deliveryWindow,
     barcodeText: form.barcodeText,
-    note: form.note
+    note: form.note,
+    customFields: normalizeCustomFields(form.customFields)
   };
 }
 
@@ -58,6 +72,7 @@ function buildCustomTemplatePayload(form) {
     titleFontSize: Number(form.titleFontSize),
     headingFontSize: Number(form.headingFontSize),
     bodyFontSize: Number(form.bodyFontSize),
+    customFields: normalizeCustomFields(form.customFields),
     density: form.density,
     showQr: form.showQr,
     showNote: form.showNote,
@@ -122,7 +137,8 @@ function buildMergedForm(form) {
       deliveryTime: deliveryTimeText,
       deliveryType: deliveryTypeText,
       barcodeText: form.barcodeText || "0000000000",
-      uiLanguage: form.uiLanguage
+      uiLanguage: form.uiLanguage,
+      customFields: normalizeCustomFields(form.customFields)
     },
     stats: {
       weightText,
@@ -215,7 +231,8 @@ function App() {
       form.weightValue,
       form.distanceValue,
       form.note,
-      form.borderWidth
+      form.borderWidth,
+      JSON.stringify(form.customFields || [])
     ],
     scale,
     previewOffset,
@@ -347,8 +364,40 @@ function App() {
       deliveryType: "",
       deliveryWindow: "",
       barcodeText: "",
-      note: ""
+      note: "",
+      customFields: []
     });
+  };
+
+  const addCustomField = () => {
+    setForm(current => ({
+      ...current,
+      customFields: [
+        ...(current.customFields || []),
+        {
+          id: `custom-field-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          label: "",
+          value: "",
+          visible: true
+        }
+      ]
+    }));
+  };
+
+  const updateCustomField = (fieldId, patch) => {
+    setForm(current => ({
+      ...current,
+      customFields: normalizeCustomFields(current.customFields).map(field => (
+        field.id === fieldId ? { ...field, ...patch } : field
+      ))
+    }));
+  };
+
+  const removeCustomField = fieldId => {
+    setForm(current => ({
+      ...current,
+      customFields: normalizeCustomFields(current.customFields).filter(field => field.id !== fieldId)
+    }));
   };
 
   const startWithTemplate = key => {
@@ -449,6 +498,7 @@ function App() {
       templateName: styleState.name || styleState.templateName || form.templateName,
       logoDataUrl: styleState.logoDataUrl || "",
       uiLanguage: styleState.uiLanguage || form.uiLanguage,
+      customFields: normalizeCustomFields(contentState.customFields || styleState.customFields || form.customFields),
       sheetLayout: normalizeSheetLayout(styleState.sheetLayout || form.sheetLayout)
     };
 
@@ -478,6 +528,15 @@ function App() {
   };
 
   const exportZpl = () => {
+    const visibleCustomFields = normalizeCustomFields(form.customFields)
+      .filter(field => field.visible !== false && (field.label || field.value))
+      .map((field, index) => `^FO40,${800 + (index * 45)}^FD${safe(field.label || t("customFieldLabel"))}: ${safe(field.value)}^FS`)
+      .join("\n");
+    const barcodeY = 820 + (normalizeCustomFields(form.customFields).filter(field => field.visible !== false && (field.label || field.value)).length * 45);
+    const noteDividerY = 1010 + (normalizeCustomFields(form.customFields).filter(field => field.visible !== false && (field.label || field.value)).length * 45);
+    const noteTitleY = 1055 + (normalizeCustomFields(form.customFields).filter(field => field.visible !== false && (field.label || field.value)).length * 45);
+    const noteBodyY = 1100 + (normalizeCustomFields(form.customFields).filter(field => field.visible !== false && (field.label || field.value)).length * 45);
+
     setZplOutput(`
 ^XA
 ^PW812
@@ -497,10 +556,11 @@ ${form.showWeight ? `^FO40,620^FD${safe(t("weight"))}: ${safe(stats.weightText)}
 ${form.showDistance ? `^FO40,665^FD${safe(t("distance"))}: ${safe(stats.distanceText)}^FS` : ""}
 ${form.showDeliveryTime ? `^FO40,710^FD${safe(t("deliveryTime"))}: ${safe(stats.deliveryTimeText)}^FS` : ""}
 ${form.showDeliveryType ? `^FO40,755^FD${safe(t("deliveryType"))}: ${safe(stats.deliveryTypeText)}^FS` : ""}
-${form.showBarcode ? "^FO80,820^BY3\n^BCN,130,Y,N,N" : ""}
+${visibleCustomFields}
+${form.showBarcode ? `^FO80,${barcodeY}^BY3\n^BCN,130,Y,N,N` : ""}
 ${form.showBarcode ? `^FD${safe(form.barcodeText)}^FS` : ""}
-${form.showNote ? `^FO40,1010^GB730,3,3^FS\n^CF0,30\n^FO40,1055^FD${safe(t("note"))}:^FS` : ""}
-${form.showNote ? `^FO40,1100^FD${safe(form.note)}^FS` : ""}
+${form.showNote ? `^FO40,${noteDividerY}^GB730,3,3^FS\n^CF0,30\n^FO40,${noteTitleY}^FD${safe(t("note"))}:^FS` : ""}
+${form.showNote ? `^FO40,${noteBodyY}^FD${safe(form.note)}^FS` : ""}
 ^XZ
 `.trim());
   };
@@ -626,6 +686,9 @@ ${form.showNote ? `^FO40,1100^FD${safe(form.note)}^FS` : ""}
             form={form}
             t={t}
             onFieldChange={updateField}
+            onAddCustomField={addCustomField}
+            onUpdateCustomField={updateCustomField}
+            onRemoveCustomField={removeCustomField}
           />
 
           <ExportSection

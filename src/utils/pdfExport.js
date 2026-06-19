@@ -96,6 +96,12 @@ function drawMetaGrid(pdf, stats, x, y, w, pad, sizes, fontName) {
   return y + 0.4;
 }
 
+function getCustomFieldStats(state) {
+  return (state.customFields || [])
+    .filter(field => field.visible !== false && (field.label || field.value))
+    .map(field => [String(field.label || "-").toUpperCase(), field.value || ""]);
+}
+
 function drawVectorLabelWithAssets(pdf, state, x, y, w, h, barcodeData, qrData) {
   const pad = 0.12;
   const accent = hexToRgb(state.accentColor);
@@ -179,6 +185,9 @@ function drawVectorLabelWithAssets(pdf, state, x, y, w, h, barcodeData, qrData) 
 
   const secondaryStats = getSecondaryStats(state);
   cursorY = drawMetaGrid(pdf, secondaryStats, x, cursorY, w, pad, sizes, fontName);
+
+  const customStats = getCustomFieldStats(state);
+  cursorY = drawMetaGrid(pdf, customStats, x, cursorY, w, pad, sizes, fontName);
 
   if (state.showBarcode) {
     pdf.addImage(barcodeData, "PNG", x + pad, cursorY + 0.05, w - (pad * 2), 0.8, undefined, "FAST");
