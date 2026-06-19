@@ -2,11 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { BrandSection } from "./components/BrandSection";
 import { ContentSection } from "./components/ContentSection";
 import { ExportSection } from "./components/ExportSection";
+import { HeaderControls } from "./components/HeaderControls";
 import { PreviewPane } from "./components/PreviewPane";
 import { PrintSettingsSection } from "./components/PrintSettingsSection";
 import { StartupOverlay } from "./components/StartupOverlay";
 import { TemplateSection } from "./components/TemplateSection";
-import { blankTemplate, buildInitialForm, presetSizes } from "./constants/templates";
+import { getTranslator } from "./constants/i18n";
+import { blankTemplate, buildInitialForm } from "./constants/templates";
+import { getGroupByKey, getPresetByKey } from "./constants/sizePresets";
 import { useCodeAssets } from "./hooks/useCodeAssets";
 import { usePreviewTransform } from "./hooks/usePreviewTransform";
 import { useSheetFrame } from "./hooks/useSheetFrame";
@@ -66,7 +69,13 @@ function buildCustomTemplatePayload(form) {
     showDeliveryType: form.showDeliveryType,
     showBarcode: form.showBarcode,
     showBarcodeValue: form.showBarcodeValue,
+    showRulers: form.showRulers,
+    showCenterGuides: form.showCenterGuides,
+    showGridOverlay: form.showGridOverlay,
+    gridStepMm: Number(form.gridStepMm),
+    uiLanguage: form.uiLanguage,
     printMode: form.printMode,
+    sizeCategory: form.sizeCategory,
     sheetLayout: form.sheetLayout,
     sizePreset: form.sizePreset,
     labelWidthMm: Number(form.labelWidthMm),
@@ -96,7 +105,7 @@ function buildMergedForm(form) {
   const normalizedSheetLayout = normalizeSheetLayout(form.sheetLayout);
   const weightText = formatMeasurement(form.weightValue, form.weightUnit);
   const distanceText = formatMeasurement(form.distanceValue, form.distanceUnit);
-  const deliveryTimeText = formatDeliveryTime(form.deliveryTime);
+  const deliveryTimeText = formatDeliveryTime(form.deliveryTime, form.uiLanguage);
   const deliveryTypeText = [form.deliveryType, form.deliveryWindow].filter(Boolean).join(" / ");
 
   return {
@@ -107,7 +116,8 @@ function buildMergedForm(form) {
       distance: distanceText,
       deliveryTime: deliveryTimeText,
       deliveryType: deliveryTypeText,
-      barcodeText: form.barcodeText || "0000000000"
+      barcodeText: form.barcodeText || "0000000000",
+      uiLanguage: form.uiLanguage
     },
     stats: {
       weightText,
@@ -120,15 +130,35 @@ function buildMergedForm(form) {
   };
 }
 
+function getStoredLanguage() {
+  if (typeof window === "undefined") {
+    return "tr";
+  }
+
+  return window.localStorage.getItem("labelit-ui-language") || "tr";
+}
+
+function getStoredTheme() {
+  if (typeof window === "undefined") {
+    return "dark";
+  }
+
+  return window.localStorage.getItem("labelit-ui-theme") || "dark";
+}
+
 function App() {
   const [templates, setTemplates] = useState(loadTemplates);
   const [activeTemplate, setActiveTemplate] = useState("shipping");
-  const [form, setForm] = useState(buildInitialForm);
+  const [form, setForm] = useState(() => ({
+    ...buildInitialForm(),
+    uiLanguage: getStoredLanguage()
+  }));
   const [showStartupOverlay, setShowStartupOverlay] = useState(true);
   const [zplOutput, setZplOutput] = useState("");
   const [scale, setScale] = useState(1);
   const [previewOffset, setPreviewOffset] = useState({ x: 0, y: 0 });
   const [dragState, setDragState] = useState(null);
+  const [theme, setTheme] = useState(getStoredTheme);
   const barcodeRef = useRef(null);
   const labelRef = useRef(null);
   const activeSlotRef = useRef(null);
@@ -137,14 +167,15 @@ function App() {
   const templateInputRef = useRef(null);
   const panelRef = useRef(null);
 
+  const t = getTranslator(form.uiLanguage || "tr");
   const { printableState, stats } = buildMergedForm(form);
   const layout = form.printMode === "thermal" ? "single" : form.sheetLayout;
   const slotCount = 1;
-  const previewModeTitle = form.printMode === "thermal" ? "Termal Etiket" : "A4 Sayfa Onizlemesi";
+  const previewModeTitle = form.printMode === "thermal" ? t("thermalPreviewTitle") : t("a4PreviewTitle");
   const previewModeCopy = form.printMode === "thermal"
-    ? `${Number(form.labelWidthMm).toFixed(1)} x ${Number(form.labelHeightMm).toFixed(1)} mm termal cikti gorunumu.`
-    : `A4 sayfada tek etiket yerlesimi, ${form.pageMarginTop} mm ust ve ${form.pageMarginSide} mm yan bosluk.`;
-  const logoStatus = form.logoDataUrl ? "Logo gorseli yuklendi." : "Su an yazi logosu kullaniliyor.";
+    ? t("thermalPreviewCopy", { width: Number(form.labelWidthMm).toFixed(1), height: Number(form.labelHeightMm).toFixed(1) })
+    : t("a4PreviewCopy", { top: form.pageMarginTop, side: form.pageMarginSide });
+  const logoStatus = form.logoDataUrl ? t("logoUploaded") : t("textLogoActive");
   const hasCustomTemplates = Object.keys(templates).some(key => !isBuiltInTemplate(key));
   const customTemplateEntries = Object.entries(templates).filter(([key]) => !isBuiltInTemplate(key));
   const visibleTemplates = customTemplateEntries;
@@ -205,6 +236,15 @@ function App() {
   }, [templates]);
 
   useEffect(() => {
+    window.localStorage.setItem("labelit-ui-language", form.uiLanguage || "tr");
+  }, [form.uiLanguage]);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    window.localStorage.setItem("labelit-ui-theme", theme);
+  }, [theme]);
+
+  useEffect(() => {
     if (showStartupOverlay) {
       return;
     }
@@ -222,11 +262,26 @@ function App() {
       next.sheetLayout = normalizeSheetLayout(next.sheetLayout);
 
       if (key === "sizePreset") {
-        const preset = presetSizes[value];
-        if (preset) {
+        const preset = getPresetByKey(next.sizeCategory, value);
+        if (preset && preset.width && preset.height) {
           next.labelWidthMm = preset.width;
           next.labelHeightMm = preset.height;
         }
+      }
+
+      if (key === "sizeCategory") {
+        const group = getGroupByKey(value);
+        const firstPreset = group.presets[0];
+        next.sizePreset = firstPreset.key;
+        if (firstPreset.width && firstPreset.height) {
+          next.labelWidthMm = firstPreset.width;
+          next.labelHeightMm = firstPreset.height;
+        }
+      }
+
+      if (["labelWidthMm", "labelHeightMm"].includes(key)) {
+        next.sizeCategory = "custom";
+        next.sizePreset = "custom";
       }
 
       if (key === "templateName" && current.templateName !== value && activeTemplate && templates[activeTemplate] && !isBuiltInTemplate(activeTemplate)) {
@@ -272,6 +327,7 @@ function App() {
       ...buildInitialForm(),
       ...blankTemplate,
       templateName: "Bos Etiket",
+      uiLanguage: form.uiLanguage,
       senderName: "",
       senderAddress: "",
       recipientName: "",
@@ -387,6 +443,7 @@ function App() {
       ...contentState,
       templateName: styleState.name || styleState.templateName || form.templateName,
       logoDataUrl: styleState.logoDataUrl || "",
+      uiLanguage: styleState.uiLanguage || form.uiLanguage,
       sheetLayout: normalizeSheetLayout(styleState.sheetLayout || form.sheetLayout)
     };
 
@@ -425,19 +482,19 @@ function App() {
 ${form.showSender ? `^FO40,90^FD${safe(form.senderName)}^FS` : ""}
 ${form.showSender && form.showSenderAddress ? `^FO40,135^FD${safe(form.senderAddress).replace(/\n/g, " ")}^FS` : ""}
 ${form.showSender || form.showRecipient ? "^FO40,220^GB730,3,3^FS" : ""}
-${form.showRecipient ? "^CF0,45\n^FO40,255^FDALICI:^FS" : ""}
+${form.showRecipient ? `^CF0,45\n^FO40,255^FD${safe(t("labelRecipient"))}:^FS` : ""}
 ${form.showRecipient ? `^CF0,55\n^FO40,315^FD${safe(form.recipientName)}^FS` : ""}
 ${form.showRecipient && form.showRecipientAddress ? `^CF0,32\n^FO40,385^FD${safe(form.recipientAddress).replace(/\n/g, " ")}^FS` : ""}
 ${form.showOrderNo || form.showReference || form.showWeight || form.showDistance || form.showDeliveryTime || form.showDeliveryType ? "^FO40,490^GB730,3,3^FS\n^CF0,30" : ""}
-${form.showOrderNo ? `^FO40,530^FDSiparis No: ${safe(form.orderNo)}^FS` : ""}
-${form.showReference ? `^FO40,575^FDReferans: ${safe(form.reference)}^FS` : ""}
-${form.showWeight ? `^FO40,620^FDAgirlik: ${safe(stats.weightText)}^FS` : ""}
-${form.showDistance ? `^FO40,665^FDMesafe: ${safe(stats.distanceText)}^FS` : ""}
-${form.showDeliveryTime ? `^FO40,710^FDTeslimat: ${safe(stats.deliveryTimeText)}^FS` : ""}
-${form.showDeliveryType ? `^FO40,755^FDTip: ${safe(stats.deliveryTypeText)}^FS` : ""}
+${form.showOrderNo ? `^FO40,530^FD${safe(t("orderNo"))}: ${safe(form.orderNo)}^FS` : ""}
+${form.showReference ? `^FO40,575^FD${safe(t("reference"))}: ${safe(form.reference)}^FS` : ""}
+${form.showWeight ? `^FO40,620^FD${safe(t("weight"))}: ${safe(stats.weightText)}^FS` : ""}
+${form.showDistance ? `^FO40,665^FD${safe(t("distance"))}: ${safe(stats.distanceText)}^FS` : ""}
+${form.showDeliveryTime ? `^FO40,710^FD${safe(t("deliveryTime"))}: ${safe(stats.deliveryTimeText)}^FS` : ""}
+${form.showDeliveryType ? `^FO40,755^FD${safe(t("deliveryType"))}: ${safe(stats.deliveryTypeText)}^FS` : ""}
 ${form.showBarcode ? "^FO80,820^BY3\n^BCN,130,Y,N,N" : ""}
 ${form.showBarcode ? `^FD${safe(form.barcodeText)}^FS` : ""}
-${form.showNote ? "^FO40,1010^GB730,3,3^FS\n^CF0,30\n^FO40,1055^FDTeslimat Notu:^FS" : ""}
+${form.showNote ? `^FO40,1010^GB730,3,3^FS\n^CF0,30\n^FO40,1055^FD${safe(t("note"))}:^FS` : ""}
 ${form.showNote ? `^FO40,1100^FD${safe(form.note)}^FS` : ""}
 ^XZ
 `.trim());
@@ -498,22 +555,39 @@ ${form.showNote ? `^FO40,1100^FD${safe(form.note)}^FS` : ""}
   return (
     <>
       {showStartupOverlay && (
-        <StartupOverlay
-          onBlankStart={startWithBlankLabel}
-          onTemplateStart={startWithTemplate}
-          savedTemplates={customTemplateEntries}
-        />
+            <StartupOverlay
+              onBlankStart={startWithBlankLabel}
+              onTemplateStart={startWithTemplate}
+              savedTemplates={customTemplateEntries}
+              language={form.uiLanguage}
+              theme={theme}
+              onLanguageChange={value => updateField("uiLanguage", value)}
+              onThemeToggle={() => setTheme(current => (current === "dark" ? "light" : "dark"))}
+              t={t}
+            />
       )}
 
       <div className="app">
         <aside ref={panelRef} className="panel">
           <div className="panel-header">
-            <p className="eyebrow">Etiket Tasarim Studyo</p>
-            <h1>{form.templateName || "Shipping Label"}</h1>
-            <p className="panel-copy">A4 onizleme, okutucu girisi, coklu etiket listesi ve sablon kutuphanesi ile baskiya hazir etiket uret.</p>
+            <div className="panel-header-top">
+              <div>
+                <p className="eyebrow">{t("appEyebrow")}</p>
+                <h1>{form.templateName || "Shipping Label"}</h1>
+              </div>
+              <HeaderControls
+                language={form.uiLanguage}
+                theme={theme}
+                t={t}
+                onLanguageChange={value => updateField("uiLanguage", value)}
+                onThemeToggle={() => setTheme(current => (current === "dark" ? "light" : "dark"))}
+              />
+            </div>
+            <p className="panel-copy">{t("appDescription")}</p>
           </div>
 
           <TemplateSection
+            t={t}
             visibleTemplates={visibleTemplates}
             activeTemplate={activeTemplate}
             isBuiltInTemplate={isBuiltInTemplate}
@@ -530,10 +604,11 @@ ${form.showNote ? `^FO40,1100^FD${safe(form.note)}^FS` : ""}
             onTemplateFileChange={loadTemplateFromFile}
           />
 
-          <PrintSettingsSection form={form} onFieldChange={updateField} />
+          <PrintSettingsSection form={form} language={form.uiLanguage} t={t} onFieldChange={updateField} />
 
           <BrandSection
             form={form}
+            t={t}
             logoStatus={logoStatus}
             logoInputRef={logoInputRef}
             onFieldChange={updateField}
@@ -544,11 +619,13 @@ ${form.showNote ? `^FO40,1100^FD${safe(form.note)}^FS` : ""}
 
           <ContentSection
             form={form}
+            t={t}
             onFieldChange={updateField}
           />
 
           <ExportSection
             zplOutput={zplOutput}
+            t={t}
             onDownloadPdf={downloadPdf}
             onPrint={() => window.print()}
             onExportZpl={exportZpl}
@@ -558,6 +635,7 @@ ${form.showNote ? `^FO40,1100^FD${safe(form.note)}^FS` : ""}
 
         <PreviewPane
           form={form}
+          t={t}
           layout={layout}
           slotCount={slotCount}
           sheetPreviewRef={sheetPreviewRef}

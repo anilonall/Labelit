@@ -1,6 +1,7 @@
 import { jsPDF } from "jspdf";
 import JsBarcode from "jsbarcode";
 import QRCode from "qrcode";
+import { getTranslator } from "../constants/i18n";
 import { hexToRgb, hexToRgbaHex } from "./colors";
 import { getPrimaryStats, getSecondaryStats } from "./formatters";
 import { mmToInch } from "./helpers";
@@ -99,6 +100,7 @@ function drawVectorLabelWithAssets(pdf, state, x, y, w, h, barcodeData, qrData) 
   const accent = hexToRgb(state.accentColor);
   const border = hexToRgb(state.borderColor);
   const text = hexToRgb(state.textColor);
+  const t = getTranslator(state.uiLanguage || "tr");
 
   pdf.setFillColor(...hexToRgb(state.backgroundColor));
   pdf.setDrawColor(...border);
@@ -129,7 +131,7 @@ function drawVectorLabelWithAssets(pdf, state, x, y, w, h, barcodeData, qrData) 
   if (state.showSender) {
     cursorY = drawTextBlock(
       pdf,
-      "GONDEREN",
+      t("labelSender"),
       state.senderName,
       state.showSenderAddress ? state.senderAddress : "",
       x,
@@ -144,7 +146,7 @@ function drawVectorLabelWithAssets(pdf, state, x, y, w, h, barcodeData, qrData) 
   if (state.showRecipient) {
     cursorY = drawTextBlock(
       pdf,
-      "ALICI",
+      t("labelRecipient"),
       state.recipientName,
       state.showRecipientAddress ? state.recipientAddress : "",
       x,
@@ -179,7 +181,7 @@ function drawVectorLabelWithAssets(pdf, state, x, y, w, h, barcodeData, qrData) 
   if (state.showNote) {
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(7);
-    pdf.text("TESLIMAT NOTU", x + pad + (state.showQr ? 0.82 : 0), cursorY + 0.12);
+    pdf.text(t("labelNote"), x + pad + (state.showQr ? 0.82 : 0), cursorY + 0.12);
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(8);
     const noteLines = wrapText(pdf, state.note || "-", (w - (pad * 2) - (state.showQr ? 0.9 : 0)) * 72);

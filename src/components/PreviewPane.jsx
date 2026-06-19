@@ -2,6 +2,7 @@ import { LabelPreview } from "./LabelPreview";
 
 export function PreviewPane({
   form,
+  t,
   layout,
   slotCount,
   sheetPreviewRef,
@@ -20,7 +21,7 @@ export function PreviewPane({
     <main className="preview-wrap">
       <div className="preview-meta">
         <div>
-          <p className="eyebrow">Canli Onizleme</p>
+          <p className="eyebrow">{t("livePreview")}</p>
           <h2>{previewModeTitle}</h2>
         </div>
         <p className="panel-copy compact-copy">{previewModeCopy}</p>
@@ -47,6 +48,7 @@ export function PreviewPane({
               {index === 0 ? (
                 <LabelPreview
                   form={form}
+                  t={t}
                   labelRef={labelRef}
                   barcodeRef={barcodeRef}
                   qrDataUrl={qrDataUrl}
@@ -55,7 +57,7 @@ export function PreviewPane({
                   stats={stats}
                 />
               ) : (
-                <div className="slot-placeholder">Bos hucre</div>
+                <div className="slot-placeholder">{t("emptySlot")}</div>
               )}
             </div>
           ))}

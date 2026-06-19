@@ -1,13 +1,13 @@
-export function ExportSection({ zplOutput, onDownloadPdf, onPrint, onExportZpl, onZplChange }) {
+export function ExportSection({ zplOutput, t, onDownloadPdf, onPrint, onExportZpl, onZplChange }) {
   return (
     <section className="panel-section">
-      <h2>Disa Aktar</h2>
+      <h2>{t("export")}</h2>
       <div className="row tight-row">
-        <button type="button" onClick={onDownloadPdf}>Vektor PDF</button>
-        <button type="button" onClick={onPrint}>Yazdir</button>
+        <button type="button" onClick={onDownloadPdf}>{t("vectorPdf")}</button>
+        <button type="button" onClick={onPrint}>{t("print")}</button>
       </div>
-      <button type="button" onClick={onExportZpl}>ZPL Olustur</button>
-      <textarea value={zplOutput} onChange={event => onZplChange(event.target.value)} placeholder="ZPL ciktisi burada olusur..." />
+      <button type="button" onClick={onExportZpl}>{t("createZpl")}</button>
+      <textarea value={zplOutput} onChange={event => onZplChange(event.target.value)} placeholder={t("zplPlaceholder")} />
     </section>
   );
 }

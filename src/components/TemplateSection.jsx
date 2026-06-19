@@ -2,6 +2,7 @@ export function TemplateSection({
   visibleTemplates,
   activeTemplate,
   isBuiltInTemplate,
+  t,
   templateName,
   onTemplateNameChange,
   onDeleteTemplate,
@@ -17,20 +18,20 @@ export function TemplateSection({
   return (
     <section className="panel-section">
       <div className="section-head">
-        <h2>Sablonlar</h2>
+        <h2>{t("templates")}</h2>
         <div className="action-group">
-          <button className="ghost-button danger-button" type="button" onClick={onDeleteTemplate} disabled={isBuiltInTemplate(activeTemplate)}>Sablonu Sil</button>
-          <button className="ghost-button" type="button" onClick={onLoadTemplateClick}>Ayar Yukle</button>
-          <button className="ghost-button" type="button" onClick={onSaveTemplateFile}>JSON Kaydet</button>
+          <button className="ghost-button danger-button" type="button" onClick={onDeleteTemplate} disabled={isBuiltInTemplate(activeTemplate)}>{t("deleteTemplate")}</button>
+          <button className="ghost-button" type="button" onClick={onLoadTemplateClick}>{t("loadSettings")}</button>
+          <button className="ghost-button" type="button" onClick={onSaveTemplateFile}>{t("saveJson")}</button>
         </div>
       </div>
-      <label htmlFor="templateName">Template Adi</label>
-      <input id="templateName" value={templateName} onChange={event => onTemplateNameChange(event.target.value)} placeholder="Ornek: Trendyol XL Etiketi" />
+      <label htmlFor="templateName">{t("templateName")}</label>
+      <input id="templateName" value={templateName} onChange={event => onTemplateNameChange(event.target.value)} placeholder={t("templatePlaceholder")} />
       <div className="row tight-row">
-        <button type="button" onClick={onSaveToLibrary}>Kutuphane'ye Ekle</button>
-        <button type="button" className="ghost-button" onClick={onClearLibrary} disabled={!hasCustomTemplates}>Kutuphane Temizle</button>
+        <button type="button" onClick={onSaveToLibrary}>{t("addToLibrary")}</button>
+        <button type="button" className="ghost-button" onClick={onClearLibrary} disabled={!hasCustomTemplates}>{t("clearLibrary")}</button>
       </div>
-      <label>Kaydedilen Sablonlar</label>
+      <label>{t("savedTemplates")}</label>
       {visibleTemplates.length ? (
         <div className="template-grid">
           {visibleTemplates.map(([key, template]) => (
@@ -41,7 +42,7 @@ export function TemplateSection({
           ))}
         </div>
       ) : (
-        <p className="scan-hint">Henuz kaydedilmis veya yuklenmis sablon yok.</p>
+        <p className="scan-hint">{t("noSavedTemplates")}</p>
       )}
       <input ref={templateInputRef} type="file" accept="application/json,.json" className="hidden" onChange={onTemplateFileChange} />
     </section>

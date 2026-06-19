@@ -1,3 +1,5 @@
+import { HeaderControls } from "./HeaderControls";
+
 function StartupCard({ title, description, templateKey, children, onClick }) {
   return (
     <button type="button" className="startup-card" data-start-template={templateKey} onClick={onClick}>
@@ -19,22 +21,42 @@ function SavedTemplateThumb() {
   );
 }
 
-export function StartupOverlay({ onBlankStart, onTemplateStart, savedTemplates }) {
+export function StartupOverlay({
+  onBlankStart,
+  onTemplateStart,
+  savedTemplates,
+  language,
+  theme,
+  onLanguageChange,
+  onThemeToggle,
+  t
+}) {
   return (
     <div className="startup-overlay">
       <div className="startup-dialog">
-        <p className="eyebrow">Hos Geldin</p>
-        <h1>Etikete nasil baslamak istersin?</h1>
-        <p className="panel-copy">Bos bir etiketle sifirdan ilerleyebilir ya da daha once kaydettigin sablonlardan biriyle hizli baslayabilirsin.</p>
+        <div className="startup-head">
+          <div>
+            <p className="eyebrow">{t("welcome")}</p>
+            <h1>{t("startupTitle")}</h1>
+          </div>
+          <HeaderControls
+            language={language}
+            theme={theme}
+            t={t}
+            onLanguageChange={onLanguageChange}
+            onThemeToggle={onThemeToggle}
+          />
+        </div>
+        <p className="panel-copy">{t("startupCopy")}</p>
         <div className="startup-grid">
-          <StartupCard title="Bos Etiket" description="Sifirdan kendi duzenini kurmak isteyenler icin temiz baslangic." onClick={onBlankStart}>
+          <StartupCard title={t("blankLabel")} description={t("blankLabelDescription")} onClick={onBlankStart}>
             <div className="blank-sheet"></div>
           </StartupCard>
           {savedTemplates.map(([key, template]) => (
             <StartupCard
               key={key}
               title={template.name}
-              description={template.description || "Kaydedilen ozel sablon."}
+              description={template.description || t("savedTemplateDescription")}
               templateKey={key}
               onClick={() => onTemplateStart(key)}
             >
@@ -43,7 +65,7 @@ export function StartupOverlay({ onBlankStart, onTemplateStart, savedTemplates }
           ))}
         </div>
         {!savedTemplates.length && (
-          <p className="panel-copy">Kaydedilen sablonun yoksa bos etiketle baslayip sonra kutuphaneye ekleyebilirsin.</p>
+          <p className="panel-copy">{t("noSavedStartup")}</p>
         )}
       </div>
     </div>
