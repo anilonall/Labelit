@@ -118,20 +118,16 @@ function App() {
   const [activeTemplate, setActiveTemplate] = useState("shipping");
   const [form, setForm] = useState(buildInitialForm);
   const [showStartupOverlay, setShowStartupOverlay] = useState(true);
-  const [scannerInput, setScannerInput] = useState("");
   const [zplOutput, setZplOutput] = useState("");
   const [scale, setScale] = useState(1);
   const [previewOffset, setPreviewOffset] = useState({ x: 0, y: 0 });
   const [dragState, setDragState] = useState(null);
-  const scannerTimerRef = useRef(null);
-  const scannerValueRef = useRef("");
   const barcodeRef = useRef(null);
   const labelRef = useRef(null);
   const activeSlotRef = useRef(null);
   const sheetPreviewRef = useRef(null);
   const logoInputRef = useRef(null);
   const templateInputRef = useRef(null);
-  const scannerInputRef = useRef(null);
   const panelRef = useRef(null);
 
   const { printableState, stats } = buildMergedForm(form);
@@ -199,8 +195,6 @@ function App() {
   useEffect(() => {
     persistCustomTemplates(templates);
   }, [templates]);
-
-  useEffect(() => () => window.clearTimeout(scannerTimerRef.current), []);
 
   useEffect(() => {
     if (showStartupOverlay) {
@@ -286,8 +280,6 @@ function App() {
       barcodeText: "",
       note: ""
     });
-    scannerValueRef.current = "";
-    setScannerInput("");
   };
 
   const startWithTemplate = key => {
@@ -370,33 +362,6 @@ function App() {
     };
     reader.readAsDataURL(file);
     event.target.value = "";
-  };
-
-  const commitScannedBarcode = () => {
-    window.clearTimeout(scannerTimerRef.current);
-    const scannedValue = scannerValueRef.current.trim();
-    if (!scannedValue) {
-      return;
-    }
-
-    updateField("barcodeText", scannedValue);
-    scannerValueRef.current = "";
-    setScannerInput("");
-    window.requestAnimationFrame(() => scannerInputRef.current?.focus());
-  };
-
-  const onScannerInput = value => {
-    scannerValueRef.current = value;
-    setScannerInput(value);
-    window.clearTimeout(scannerTimerRef.current);
-    scannerTimerRef.current = window.setTimeout(commitScannedBarcode, 120);
-  };
-
-  const clearScannedBarcode = () => {
-    updateField("barcodeText", "");
-    scannerValueRef.current = "";
-    setScannerInput("");
-    window.requestAnimationFrame(() => scannerInputRef.current?.focus());
   };
 
   const applyLoadedSettings = data => {
@@ -571,12 +536,7 @@ function App() {
 
           <ContentSection
             form={form}
-            scannerInput={scannerInput}
-            scannerInputRef={scannerInputRef}
             onFieldChange={updateField}
-            onScannerInput={onScannerInput}
-            onScannerCommit={commitScannedBarcode}
-            onClearBarcode={clearScannedBarcode}
           />
 
           <ExportSection

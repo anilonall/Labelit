@@ -2,12 +2,7 @@ import { FormField } from "./FormField";
 
 export function ContentSection({
   form,
-  scannerInput,
-  scannerInputRef,
-  onFieldChange,
-  onScannerInput,
-  onScannerCommit,
-  onClearBarcode
+  onFieldChange
 }) {
   return (
     <section className="panel-section">
@@ -47,34 +42,7 @@ export function ContentSection({
         <div><FormField id="deliveryType" label="Teslimat Tipi" value={form.deliveryType} onChange={value => onFieldChange("deliveryType", value)} /></div>
         <div><FormField id="deliveryWindow" label="Teslimat Suresi" value={form.deliveryWindow} onChange={value => onFieldChange("deliveryWindow", value)} /></div>
       </div>
-      <div className="scan-card">
-        <div className="scan-head">
-          <label htmlFor="barcodeScannerInput">Barkod Okut</label>
-          <div className="scan-actions">
-            <button className="ghost-button" type="button" onClick={() => scannerInputRef.current?.focus()}>Okutucuya Hazirla</button>
-            <button className="ghost-button" type="button" onClick={onClearBarcode}>Temizle</button>
-          </div>
-        </div>
-        <input
-          id="barcodeScannerInput"
-          ref={scannerInputRef}
-          value={scannerInput}
-          placeholder="Okutucuyu buraya okutun"
-          autoComplete="off"
-          onChange={event => onScannerInput(event.target.value)}
-          onKeyDown={event => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              onScannerCommit();
-            }
-          }}
-        />
-        <p className="scan-hint">Barkod okuyucu veriyi yazinca etiket, QR ve PDF otomatik ayni degerle guncellenir.</p>
-        <div className="scan-result">
-          <small>Okunan Barkod</small>
-          <strong>{form.barcodeText || "Barkod bekleniyor"}</strong>
-        </div>
-      </div>
+      <FormField id="barcodeText" label="Barkod" value={form.barcodeText} onChange={value => onFieldChange("barcodeText", value)} placeholder="Barkod degeri" />
       <label htmlFor="note">Teslimat Notu</label>
       <textarea id="note" value={form.note} onChange={event => onFieldChange("note", event.target.value)} />
     </section>
