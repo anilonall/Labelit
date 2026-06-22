@@ -304,7 +304,6 @@ function EditableBlock({ itemKey, frame, onChange, children, accentColor, labelR
         "--layout-accent": accentColor
       }}
       onPointerDown={event => {
-        event.stopPropagation();
         onSelect?.(itemKey);
       }}
       onClick={event => {
@@ -492,6 +491,19 @@ export function LabelPreview({
         height: `calc(${form.labelHeightMm}mm + ${RULER_GUTTER}px)`
       }}
     >
+      <button
+        type="button"
+        className="label-stage-drag-handle"
+        onPointerDown={event => {
+          event.stopPropagation();
+          onPointerDown?.(event);
+        }}
+        aria-label="move-label"
+        title="Move label"
+      >
+        <span className="label-stage-drag-dots" />
+      </button>
+
       {form.showRulers && (
         <>
           <Ruler ticks={horizontalTicks} orientation="horizontal" label="mm" accentColor={form.accentColor} />

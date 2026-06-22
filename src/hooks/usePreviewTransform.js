@@ -40,11 +40,11 @@ export function usePreviewTransform({
     }
 
     const fitScale = Math.min(availableWidth / labelWidth, availableHeight / labelHeight, 1);
-    const finalScale = Math.min(fitScale, fitScale * scale);
+    const finalScale = fitScale * scale;
     const scaledWidth = labelWidth * finalScale;
     const scaledHeight = labelHeight * finalScale;
-    const maxOffsetX = Math.max(0, (scaledWidth - availableWidth) / 2);
-    const maxOffsetY = Math.max(0, (scaledHeight - availableHeight) / 2);
+    const maxOffsetX = Math.abs(availableWidth - scaledWidth) / 2;
+    const maxOffsetY = Math.abs(availableHeight - scaledHeight) / 2;
     const clampedX = clamp(previewOffset.x, -maxOffsetX, maxOffsetX);
     const clampedY = clamp(previewOffset.y, -maxOffsetY, maxOffsetY);
 

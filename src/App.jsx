@@ -712,7 +712,14 @@ ${form.showNote ? `^FO40,${noteBodyY}^FD${safe(form.note)}^FS` : ""}
 
   const changeSize = value => {
     const zoomFactor = 1.15;
-    setScale(current => (value > 0 ? current * zoomFactor : current / zoomFactor));
+    setScale(current => {
+      const nextScale = value > 0 ? current * zoomFactor : current / zoomFactor;
+      return Math.min(5, Math.max(0.35, nextScale));
+    });
+  };
+
+  const handleWheelZoom = deltaY => {
+    changeSize(deltaY < 0 ? 1 : -1);
   };
 
   const updateLayoutItem = (itemKey, patch) => {
@@ -979,6 +986,7 @@ ${form.showNote ? `^FO40,${noteBodyY}^FD${safe(form.note)}^FS` : ""}
           onFieldChange={updateField}
           onAddCustomField={addCustomField}
           onRemoveCustomField={removeCustomField}
+          onWheelZoom={handleWheelZoom}
         />
       </div>
     </>

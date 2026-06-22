@@ -19,7 +19,8 @@ export function PreviewPane({
   onLayoutItemChange,
   onFieldChange,
   onAddCustomField,
-  onRemoveCustomField
+  onRemoveCustomField,
+  onWheelZoom
 }) {
   return (
     <main className="preview-wrap">
@@ -31,7 +32,14 @@ export function PreviewPane({
         <p className="panel-copy compact-copy">{previewModeCopy}</p>
       </div>
 
-      <section ref={sheetPreviewRef} className="sheet-preview">
+      <section
+        ref={sheetPreviewRef}
+        className="sheet-preview"
+        onWheel={event => {
+          event.preventDefault();
+          onWheelZoom?.(event.deltaY);
+        }}
+      >
         <div
           className={`sheet-page layout-${layout} ${form.printMode === "thermal" ? "thermal-stage" : ""}`}
           style={{

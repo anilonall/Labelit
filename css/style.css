@@ -101,6 +101,7 @@ body {
   background: var(--body-bg);
   color: var(--panel-text);
   overflow: hidden;
+  overflow-x: hidden;
 }
 
 .startup-overlay {
@@ -543,16 +544,21 @@ body {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+  min-width: 0;
 }
 
 .panel-header-actions {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .session-badge {
   min-width: 0;
+  max-width: 100%;
   padding: 9px 14px;
   border-radius: 16px;
   border: 1px solid var(--panel-border);
@@ -902,13 +908,17 @@ button:disabled {
   padding: 28px 32px;
   height: 100vh;
   overflow: hidden;
+  min-width: 0;
 }
 
 .sheet-preview {
   display: grid;
   place-items: center;
-  overflow: hidden;
+  overflow: auto;
   min-height: 0;
+  min-width: 0;
+  padding: 8px;
+  -webkit-overflow-scrolling: touch;
 }
 
 .sheet-page {
@@ -921,6 +931,7 @@ button:disabled {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 16px;
+  min-width: 0;
 }
 
 .sheet-page.layout-single {
@@ -955,6 +966,7 @@ button:disabled {
 
 .sheet-slot {
   min-height: 0;
+  min-width: 0;
   position: relative;
   border: 1px dashed rgba(15, 23, 42, 0.14);
   border-radius: 14px;
@@ -985,6 +997,41 @@ button:disabled {
 
 .label-stage.dragging {
   cursor: grabbing;
+}
+
+.label-stage-drag-handle {
+  position: absolute;
+  left: 50%;
+  top: -14px;
+  z-index: 6;
+  width: 44px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: linear-gradient(135deg, #fb923c, #ea580c);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.22);
+  transform: translateX(-50%);
+  display: grid;
+  place-items: center;
+  cursor: grab;
+}
+
+.label-stage-drag-handle:hover {
+  opacity: 1;
+}
+
+.label-stage.dragging .label-stage-drag-handle {
+  cursor: grabbing;
+}
+
+.label-stage-drag-dots {
+  width: 14px;
+  height: 4px;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle, white 35%, transparent 36%) 0 50% / 4px 4px repeat-x;
 }
 
 .label {
@@ -1317,6 +1364,7 @@ button:disabled {
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
 .language-menu {
@@ -1388,6 +1436,7 @@ button:disabled {
   box-shadow: 0 24px 50px rgba(0, 0, 0, 0.2);
   backdrop-filter: blur(12px);
   z-index: 45;
+  max-width: min(90vw, 220px);
 }
 
 .language-option {
@@ -1599,12 +1648,80 @@ button:disabled {
   .preview-wrap {
     height: auto;
     overflow: visible;
+    padding-top: 22px;
+  }
+
+  .sheet-preview {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 960px) {
+  .startup-overlay {
+    padding: 16px;
+  }
+
+  .startup-dialog,
+  .auth-dialog {
+    width: 100%;
+    max-height: min(94vh, 1200px);
+    padding: 22px;
+    border-radius: 24px;
+  }
+
+  .startup-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .row,
+  .inline-fields,
+  .inline-fields.triple,
+  .inline-fields.double-stack,
+  .color-grid,
+  .template-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .section-head,
+  .action-group,
+  .scan-head,
+  .scan-actions,
+  .preview-meta {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .action-group,
+  .panel-header-actions,
+  .header-controls {
+    width: 100%;
+  }
+
+  .ghost-button,
+  .action-group .ghost-button {
+    width: 100%;
+  }
+
+  .preview-wrap {
+    padding: 22px 20px 28px;
+  }
+
+  .sheet-page {
+    width: 100%;
+    min-height: 70vh;
+  }
+
+  .sheet-page.thermal-stage {
+    height: auto !important;
+    min-height: 70vh;
+    padding: 24px !important;
   }
 }
 
 @media (max-width: 760px) {
   .startup-dialog {
     padding: 20px;
+    border-radius: 22px;
   }
 
   .startup-head {
@@ -1634,16 +1751,28 @@ button:disabled {
   }
 
   .panel-header-actions {
-    justify-content: space-between;
-    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .session-badge,
+  .header-controls,
+  .language-menu,
+  .language-trigger {
+    width: 100%;
   }
 
   .header-controls {
-    justify-content: flex-end;
+    justify-content: stretch;
   }
 
-  .language-trigger {
-    min-width: 118px;
+  .language-trigger,
+  .theme-toggle {
+    min-width: 0;
+  }
+
+  .theme-toggle {
+    width: 48px;
+    flex: 0 0 48px;
   }
 
   .template-grid,
@@ -1672,6 +1801,8 @@ button:disabled {
   .sheet-page {
     aspect-ratio: auto;
     min-height: 75vh;
+    padding: 14px !important;
+    border-radius: 16px;
   }
 
   .bottom,
@@ -1694,8 +1825,134 @@ button:disabled {
   }
 
   .floating-logout {
-    top: 14px;
+    top: auto;
     right: 14px;
+    bottom: 14px;
+    width: 52px;
+    height: 52px;
+    z-index: 48;
+  }
+
+  .preview-wrap {
+    padding: 18px 14px 84px;
+  }
+
+  .sheet-preview {
+    padding: 4px 0 8px;
+  }
+
+  .preview-context-menu {
+    min-width: min(92vw, 280px);
+    max-width: 92vw;
+  }
+
+  .preview-context-level.submenu {
+    left: 0;
+    top: calc(100% + 6px);
+    min-width: min(88vw, 260px);
+    transform: translateY(6px);
+  }
+
+  .preview-context-group:hover > .preview-context-level.submenu,
+  .preview-context-group:focus-within > .preview-context-level.submenu {
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 560px) {
+  .startup-overlay {
+    padding: 10px;
+  }
+
+  .startup-dialog,
+  .auth-dialog {
+    padding: 16px;
+    border-radius: 20px;
+  }
+
+  .startup-dialog h1,
+  .panel-header h1 {
+    font-size: 26px;
+    line-height: 1.1;
+  }
+
+  .auth-card,
+  .auth-sidecard,
+  .panel-section {
+    padding: 14px;
+    border-radius: 16px;
+  }
+
+  .startup-card {
+    min-height: 232px;
+    padding: 14px;
+  }
+
+  .icon-toggle {
+    width: 42px;
+    height: 42px;
+  }
+
+  .language-trigger {
+    padding: 0 10px;
+  }
+
+  .language-trigger-label,
+  .session-badge strong,
+  .template-card strong,
+  .startup-card strong {
+    font-size: 12px;
+  }
+
+  .preview-wrap {
+    gap: 12px;
+    padding: 16px 10px 84px;
+  }
+
+  .sheet-page {
+    min-height: 62vh;
+    gap: 10px;
+  }
+
+  .sheet-slot {
+    padding: 4px;
+    border-radius: 10px;
+  }
+
+  .floating-logout {
+    right: 10px;
+    bottom: 10px;
+  }
+}
+
+@media (max-width: 420px) {
+  .startup-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .panel {
+    padding: 12px;
+  }
+
+  .panel-section {
+    margin-top: 12px;
+  }
+
+  .toggle,
+  .template-card,
+  .scan-card,
+  .custom-field-card {
+    padding: 10px;
+  }
+
+  .preview-wrap {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .sheet-page,
+  .sheet-page.thermal-stage {
+    padding: 10px !important;
   }
 }
 
