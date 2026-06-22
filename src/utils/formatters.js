@@ -1,5 +1,21 @@
 import { getTranslator } from "../constants/i18n";
 
+function getLocale(language) {
+  switch (language) {
+    case "de":
+      return "de-DE";
+    case "es":
+      return "es-ES";
+    case "fr":
+      return "fr-FR";
+    case "en":
+      return "en-US";
+    case "tr":
+    default:
+      return "tr-TR";
+  }
+}
+
 export function formatMeasurement(value, unit) {
   const normalized = String(value || "").trim();
   return normalized ? `${normalized} ${unit}`.trim() : "";
@@ -15,7 +31,7 @@ export function formatDeliveryTime(value, language = "tr") {
     return value;
   }
 
-  return date.toLocaleString(language === "en" ? "en-US" : "tr-TR", {
+  return date.toLocaleString(getLocale(language), {
     day: "2-digit",
     month: "2-digit",
     hour: "2-digit",

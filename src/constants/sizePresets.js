@@ -163,7 +163,7 @@ export function getLocalizedGroupLabel(group, language) {
     return "";
   }
 
-  return language === "en" ? group.label.en : group.label.tr;
+  return group.label?.[language] || group.label?.en || group.label?.tr || "";
 }
 
 export function getLocalizedPresetDescription(preset, language) {
@@ -171,5 +171,5 @@ export function getLocalizedPresetDescription(preset, language) {
     return "";
   }
 
-  return preset.description?.[language] || preset.description?.tr || "";
+  return preset.description?.[language] || preset.description?.en || preset.description?.tr || "";
 }

@@ -52,11 +52,11 @@ export async function getCurrentSession() {
   return normalizeSession(payload);
 }
 
-export async function registerWithEmail({ email, name }) {
+export async function registerWithEmail({ email, name, password }) {
   try {
     const payload = await apiRequest(apiConfig.AuthController.register.endpoint, {
       method: apiConfig.AuthController.register.method,
-      body: JSON.stringify({ email, name })
+      body: JSON.stringify({ email, name, password })
     }, false);
 
     const result = normalizeAuthResult(payload);
@@ -78,11 +78,11 @@ export async function registerWithEmail({ email, name }) {
   }
 }
 
-export async function signInWithEmail({ email, name }) {
+export async function signInWithEmail({ email, password }) {
   try {
     const payload = await apiRequest(apiConfig.AuthController.login.endpoint, {
       method: apiConfig.AuthController.login.method,
-      body: JSON.stringify({ email, name })
+      body: JSON.stringify({ email, password })
     }, false);
 
     const result = normalizeAuthResult(payload);

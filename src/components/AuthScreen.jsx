@@ -49,11 +49,9 @@ export function AuthScreen({
     setError("");
     setInfo("");
 
-    const payload = {
-      email,
-      name,
-      password
-    };
+    const payload = mode === "register"
+      ? { email, name, password }
+      : { email, password };
 
     if (mode === "register" && password !== confirmPassword) {
       setError(t("authPasswordMismatch"));
@@ -156,17 +154,21 @@ export function AuthScreen({
               <span>{t("authOr")}</span>
             </div>
 
-            <label htmlFor="authName">{t("authNameLabel")}</label>
-            <input
-              id="authName"
-              type="text"
-              autoComplete="name"
-              placeholder={t("authNamePlaceholder")}
-              value={name}
-              onChange={event => setName(event.target.value)}
-              disabled={loading || checkingSession}
-              required
-            />
+            {mode === "register" && (
+              <>
+                <label htmlFor="authName">{t("authNameLabel")}</label>
+                <input
+                  id="authName"
+                  type="text"
+                  autoComplete="name"
+                  placeholder={t("authNamePlaceholder")}
+                  value={name}
+                  onChange={event => setName(event.target.value)}
+                  disabled={loading || checkingSession}
+                  required
+                />
+              </>
+            )}
 
             <label htmlFor="authEmail">{t("authEmailLabel")}</label>
             <input

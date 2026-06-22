@@ -11,7 +11,7 @@ import { StartupOverlay } from "./components/StartupOverlay";
 import { TemplateSection } from "./components/TemplateSection";
 import { getTranslator } from "./constants/i18n";
 import { normalizeLayoutItems } from "./constants/layoutItems";
-import { blankTemplate, buildInitialForm } from "./constants/templates";
+import { blankTemplate, buildInitialForm, getLocalizedBuiltInTemplate } from "./constants/templates";
 import { getGroupByKey, getPresetByKey } from "./constants/sizePresets";
 import { useCodeAssets } from "./hooks/useCodeAssets";
 import { usePreviewTransform } from "./hooks/usePreviewTransform";
@@ -187,7 +187,7 @@ function App() {
   const [templates, setTemplates] = useState(loadTemplates);
   const [activeTemplate, setActiveTemplate] = useState("shipping");
   const [form, setForm] = useState(() => ({
-    ...buildInitialForm(),
+    ...buildInitialForm(getStoredLanguage()),
     uiLanguage: getStoredLanguage()
   }));
   const [showStartupOverlay, setShowStartupOverlay] = useState(true);
@@ -221,6 +221,10 @@ function App() {
   const hasCustomTemplates = Object.keys(templates).some(key => !isBuiltInTemplate(key));
   const customTemplateEntries = Object.entries(templates).filter(([key]) => !isBuiltInTemplate(key));
   const visibleTemplates = customTemplateEntries;
+  const localizedActiveBuiltInTemplate = isBuiltInTemplate(activeTemplate)
+    ? getLocalizedBuiltInTemplate(activeTemplate, form.uiLanguage)
+    : null;
+  const displayTemplateName = localizedActiveBuiltInTemplate?.name || form.templateName || "Shipping Label";
 
   const previewTransform = usePreviewTransform({
     activeSlotRef,
@@ -286,6 +290,23 @@ function App() {
     document.documentElement.dataset.theme = theme;
     window.localStorage.setItem("labelit-ui-theme", theme);
   }, [theme]);
+
+  useEffect(() => {
+    if (!isBuiltInTemplate(activeTemplate)) {
+      return;
+    }
+
+    const localizedTemplate = getLocalizedBuiltInTemplate(activeTemplate, form.uiLanguage);
+    if (!localizedTemplate) {
+      return;
+    }
+
+    setForm(current => ({
+      ...current,
+      templateName: localizedTemplate.name,
+      labelTitle: localizedTemplate.labelTitle
+    }));
+  }, [activeTemplate, form.uiLanguage]);
 
   useEffect(() => {
     let cancelled = false;
@@ -443,7 +464,9 @@ function App() {
   const handleProviderSignIn = provider => startProviderSignIn(provider);
 
   const applyTemplate = key => {
-    const template = templates[key];
+    const template = isBuiltInTemplate(key)
+      ? getLocalizedBuiltInTemplate(key, form.uiLanguage)
+      : templates[key];
     if (!template) {
       return;
     }
@@ -464,9 +487,9 @@ function App() {
     setScale(1);
     setPreviewOffset({ x: 0, y: 0 });
     setForm({
-      ...buildInitialForm(),
-      ...blankTemplate,
-      templateName: "Boş Etiket",
+      ...buildInitialForm(form.uiLanguage),
+      ...getLocalizedBuiltInTemplate("blank", form.uiLanguage),
+      templateName: getLocalizedBuiltInTemplate("blank", form.uiLanguage)?.name || t("blankLabel"),
       uiLanguage: form.uiLanguage,
       senderName: "",
       senderAddress: "",
@@ -867,15 +890,21 @@ ${form.showNote ? `^FO40,${noteBodyY}^FD${safe(form.note)}^FS` : ""}
             <div className="panel-header-top">
               <div>
                 <p className="eyebrow">{t("appEyebrow")}</p>
-                <h1>{form.templateName || "Shipping Label"}</h1>
+                <h1>{displayTemplateName}</h1>
               </div>
-              <HeaderControls
-                language={form.uiLanguage}
-                theme={theme}
-                t={t}
-                onLanguageChange={value => updateField("uiLanguage", value)}
-                onThemeToggle={() => setTheme(current => (current === "dark" ? "light" : "dark"))}
-              />
+              <div className="panel-header-actions">
+                <div className="session-badge" title={session.name || session.email}>
+                  <span className="session-badge-label">{t("welcome")}</span>
+                  <strong>{session.name || session.email}</strong>
+                </div>
+                <HeaderControls
+                  language={form.uiLanguage}
+                  theme={theme}
+                  t={t}
+                  onLanguageChange={value => updateField("uiLanguage", value)}
+                  onThemeToggle={() => setTheme(current => (current === "dark" ? "light" : "dark"))}
+                />
+              </div>
             </div>
             <p className="panel-copy">{t("appDescription")}</p>
           </div>

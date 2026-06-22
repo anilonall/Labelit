@@ -1,5 +1,21 @@
 import { formatDeliveryTime } from "./formatters";
 
+function getLocale(language) {
+  switch (language) {
+    case "de":
+      return "de-DE";
+    case "es":
+      return "es-ES";
+    case "fr":
+      return "fr-FR";
+    case "en":
+      return "en-US";
+    case "tr":
+    default:
+      return "tr-TR";
+  }
+}
+
 export const customFieldSourceOptions = [
   { key: "manual", label: { tr: "Manuel Metin", en: "Manual Text" } },
   { key: "currentDate", label: { tr: "Bugünün Tarihi", en: "Current Date" } },
@@ -42,9 +58,9 @@ export function getCustomFieldSourceLabel(sourceType, language = "tr") {
 export function resolveCustomFieldValue(field, form, stats) {
   switch (field.sourceType) {
     case "currentDate":
-      return new Date().toLocaleDateString(form.uiLanguage === "en" ? "en-US" : "tr-TR");
+      return new Date().toLocaleDateString(getLocale(form.uiLanguage));
     case "currentTime":
-      return new Date().toLocaleTimeString(form.uiLanguage === "en" ? "en-US" : "tr-TR", { hour: "2-digit", minute: "2-digit" });
+      return new Date().toLocaleTimeString(getLocale(form.uiLanguage), { hour: "2-digit", minute: "2-digit" });
     case "currentDateTime":
       return formatDeliveryTime(new Date().toISOString(), form.uiLanguage);
     case "barcode":

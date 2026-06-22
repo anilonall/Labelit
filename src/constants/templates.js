@@ -4,6 +4,58 @@ export const LIBRARY_KEY = "label-template-library-v1";
 
 export const builtInTemplateKeys = ["blank", "shipping", "cargo", "receiving", "return", "transfer", "pallet"];
 
+const builtInTemplateTranslations = {
+  shipping: {
+    tr: { name: "Sevkiyat Etiketi", description: "Sevk ve dagitim surecleri icin genel cikis etiketi.", labelTitle: "SEVKIYAT ETIKETI" },
+    en: { name: "Shipping Label", description: "General outbound label for shipping and distribution.", labelTitle: "SHIPPING LABEL" },
+    de: { name: "Versandetikett", description: "Allgemeines Ausgangsetikett fur Versand und Distribution.", labelTitle: "VERSANDETIKETT" },
+    es: { name: "Etiqueta de envio", description: "Etiqueta general de salida para envios y distribucion.", labelTitle: "ETIQUETA DE ENVIO" },
+    fr: { name: "Etiquette d'expedition", description: "Etiquette generale pour l'expedition et la distribution.", labelTitle: "ETIQUETTE D'EXPEDITION" }
+  },
+  cargo: {
+    tr: { name: "Kargo Etiketi", description: "Teslimat ve kurye akislarina uygun standart kargo duzeni.", labelTitle: "KARGO ETIKETI" },
+    en: { name: "Cargo Label", description: "Standard cargo layout for delivery and courier flows.", labelTitle: "CARGO LABEL" },
+    de: { name: "Frachtetikett", description: "Standardlayout fur Liefer- und Kurierablaufe.", labelTitle: "FRACHTETIKETT" },
+    es: { name: "Etiqueta de carga", description: "Diseno estandar para flujos de entrega y mensajeria.", labelTitle: "ETIQUETA DE CARGA" },
+    fr: { name: "Etiquette de fret", description: "Mise en page standard pour la livraison et le courrier.", labelTitle: "ETIQUETTE DE FRET" }
+  },
+  receiving: {
+    tr: { name: "Mal Kabul Etiketi", description: "Gelen urun kontrol ve kabul operasyonlari icin net alanlar.", labelTitle: "MAL KABUL ETIKETI" },
+    en: { name: "Receiving Label", description: "Clear fields for inbound inspection and receiving operations.", labelTitle: "RECEIVING LABEL" },
+    de: { name: "Wareneingangsetikett", description: "Klare Felder fur Eingangskontrolle und Wareneingang.", labelTitle: "WARENEINGANGETIKETT" },
+    es: { name: "Etiqueta de recepcion", description: "Campos claros para control y recepcion de productos.", labelTitle: "ETIQUETA DE RECEPCION" },
+    fr: { name: "Etiquette de reception", description: "Champs clairs pour le controle et la reception.", labelTitle: "ETIQUETTE DE RECEPTION" }
+  },
+  return: {
+    tr: { name: "Iade Etiketi", description: "Iade urunlerin ayristirma ve geri kabul surecleri icin.", labelTitle: "IADE ETIKETI" },
+    en: { name: "Return Label", description: "For return sorting and reverse receiving workflows.", labelTitle: "RETURN LABEL" },
+    de: { name: "Retourenetikett", description: "Fur Retouren-Sortierung und Rucknahmeprozesse.", labelTitle: "RETOURENETIKETT" },
+    es: { name: "Etiqueta de devolucion", description: "Para clasificacion y recepcion de devoluciones.", labelTitle: "ETIQUETA DE DEVOLUCION" },
+    fr: { name: "Etiquette de retour", description: "Pour le tri et la reception des retours.", labelTitle: "ETIQUETTE DE RETOUR" }
+  },
+  transfer: {
+    tr: { name: "Depo Transfer Etiketi", description: "Depolar arasi urun hareketleri ve lokasyon transferleri icin.", labelTitle: "DEPO TRANSFER ETIKETI" },
+    en: { name: "Warehouse Transfer Label", description: "For product movements and warehouse location transfers.", labelTitle: "WAREHOUSE TRANSFER LABEL" },
+    de: { name: "Lagertransferetikett", description: "Fur Warenbewegungen und Standorttransfers im Lager.", labelTitle: "LAGERTRANSFERETIKETT" },
+    es: { name: "Etiqueta de transferencia", description: "Para movimientos de productos y transferencias de ubicacion.", labelTitle: "ETIQUETA DE TRANSFERENCIA" },
+    fr: { name: "Etiquette de transfert", description: "Pour les mouvements de produits et transferts d'emplacement.", labelTitle: "ETIQUETTE DE TRANSFERT" }
+  },
+  pallet: {
+    tr: { name: "Palet Etiketi", description: "Palet takibi, saha sevki ve buyuk hacimli yuklemeler icin.", labelTitle: "PALET ETIKETI" },
+    en: { name: "Pallet Label", description: "For pallet tracking, field shipping and large-volume loading.", labelTitle: "PALLET LABEL" },
+    de: { name: "Palettenetikett", description: "Fur Palettenverfolgung und grossvolumige Verladungen.", labelTitle: "PALETTENETIKETT" },
+    es: { name: "Etiqueta de palet", description: "Para seguimiento de palets y cargas de gran volumen.", labelTitle: "ETIQUETA DE PALET" },
+    fr: { name: "Etiquette palette", description: "Pour le suivi des palettes et les chargements volumineux.", labelTitle: "ETIQUETTE PALETTE" }
+  },
+  blank: {
+    tr: { name: "Bos Etiket", description: "Sifirdan baslamak icin temiz alan.", labelTitle: "BOS ETIKET" },
+    en: { name: "Blank Label", description: "A clean space to start from scratch.", labelTitle: "BLANK LABEL" },
+    de: { name: "Leeres Etikett", description: "Eine saubere Flache fur den Start von Grund auf.", labelTitle: "LEERES ETIKETT" },
+    es: { name: "Etiqueta en blanco", description: "Un espacio limpio para empezar desde cero.", labelTitle: "ETIQUETA EN BLANCO" },
+    fr: { name: "Etiquette vierge", description: "Un espace propre pour commencer a zero.", labelTitle: "ETIQUETTE VIERGE" }
+  }
+};
+
 export const baseTemplates = {
   shipping: {
     name: "Sevkiyat Etiketi",
@@ -344,6 +396,25 @@ export const blankTemplate = {
   logoDataUrl: ""
 };
 
+export function getLocalizedBuiltInTemplate(key, language = "tr") {
+  const base = key === "blank" ? blankTemplate : baseTemplates[key];
+  if (!base) {
+    return null;
+  }
+
+  const localized = builtInTemplateTranslations[key]?.[language]
+    || builtInTemplateTranslations[key]?.en
+    || builtInTemplateTranslations[key]?.tr
+    || {};
+
+  return {
+    ...base,
+    name: localized.name || base.name,
+    description: localized.description || base.description,
+    labelTitle: localized.labelTitle || base.labelTitle
+  };
+}
+
 export const defaultContent = {
   senderName: "",
   senderAddress: "",
@@ -363,10 +434,11 @@ export const defaultContent = {
   customFields: []
 };
 
-export function buildInitialForm() {
+export function buildInitialForm(language = "tr") {
+  const shippingTemplate = getLocalizedBuiltInTemplate("shipping", language) || baseTemplates.shipping;
   return {
-    templateName: baseTemplates.shipping.name,
-    ...baseTemplates.shipping,
+    templateName: shippingTemplate.name,
+    ...shippingTemplate,
     ...defaultContent
   };
 }
