@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { AuthScreen } from "./components/AuthScreen";
 import { BrandSection } from "./components/BrandSection";
 import { ContentSection } from "./components/ContentSection";
 import { ExportSection } from "./components/ExportSection";
@@ -17,6 +18,7 @@ import { useSheetFrame } from "./hooks/useSheetFrame";
 import { normalizeCustomFields, resolveCustomFields } from "./utils/customFields";
 import { formatDeliveryTime, formatMeasurement } from "./utils/formatters";
 import { safe, slugify } from "./utils/helpers";
+import { getStoredSession, signInWithEmail, signInWithProvider, signOut } from "./utils/mockAuth";
 import { createPdfDocument } from "./utils/pdfExport";
 import { isBuiltInTemplate, loadTemplates, persistCustomTemplates } from "./utils/templateStorage";
 
@@ -178,6 +180,7 @@ function App() {
   const [previewOffset, setPreviewOffset] = useState({ x: 0, y: 0 });
   const [dragState, setDragState] = useState(null);
   const [theme, setTheme] = useState(getStoredTheme);
+  const [session, setSession] = useState(getStoredSession);
   const barcodeRef = useRef(null);
   const labelRef = useRef(null);
   const activeSlotRef = useRef(null);
@@ -321,6 +324,23 @@ function App() {
       return next;
     });
   };
+
+  const handleSignIn = email => {
+    const result = signInWithEmail(email);
+    if (result.ok) {
+      setSession(result.session);
+    }
+
+    return result;
+  };
+
+  const handleSignOut = () => {
+    signOut();
+    setSession(null);
+    setShowStartupOverlay(true);
+  };
+
+  const handleProviderSignIn = provider => signInWithProvider(provider);
 
   const applyTemplate = key => {
     const template = templates[key];
@@ -632,6 +652,20 @@ ${form.showNote ? `^FO40,${noteBodyY}^FD${safe(form.note)}^FS` : ""}
     };
   }, [dragState, previewOffset.x, previewOffset.y]);
 
+  if (!session) {
+    return (
+      <AuthScreen
+        language={form.uiLanguage}
+        theme={theme}
+        onLanguageChange={value => updateField("uiLanguage", value)}
+        onThemeToggle={() => setTheme(current => (current === "dark" ? "light" : "dark"))}
+        onSubmit={handleSignIn}
+        onProviderSubmit={handleProviderSignIn}
+        t={t}
+      />
+    );
+  }
+
   return (
     <>
       {showStartupOverlay && (
@@ -648,6 +682,14 @@ ${form.showNote ? `^FO40,${noteBodyY}^FD${safe(form.note)}^FS` : ""}
       )}
 
       <div className="app">
+        <button type="button" className="floating-logout" onClick={handleSignOut} aria-label={t("logout")} title={t("logout")}>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4" />
+            <path d="M14 16l4-4-4-4" />
+            <path d="M18 12H9" />
+          </svg>
+        </button>
+
         <aside ref={panelRef} className="panel">
           <div className="panel-header">
             <div className="panel-header-top">
