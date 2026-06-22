@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AuthScreen } from "./components/AuthScreen";
+import { AuthStatusScreen } from "./components/AuthStatusScreen";
 import { BrandSection } from "./components/BrandSection";
 import { ContentSection } from "./components/ContentSection";
 import { ExportSection } from "./components/ExportSection";
@@ -15,10 +16,17 @@ import { getGroupByKey, getPresetByKey } from "./constants/sizePresets";
 import { useCodeAssets } from "./hooks/useCodeAssets";
 import { usePreviewTransform } from "./hooks/usePreviewTransform";
 import { useSheetFrame } from "./hooks/useSheetFrame";
+import {
+  hydrateOAuthSessionFromQuery,
+  registerWithEmail,
+  signInWithEmail,
+  signOut,
+  startProviderSignIn,
+  tryRestoreSession
+} from "./utils/authClient";
 import { normalizeCustomFields, resolveCustomFields } from "./utils/customFields";
 import { formatDeliveryTime, formatMeasurement } from "./utils/formatters";
 import { safe, slugify } from "./utils/helpers";
-import { getStoredSession, signInWithEmail, signInWithProvider, signOut } from "./utils/mockAuth";
 import { createPdfDocument } from "./utils/pdfExport";
 import { isBuiltInTemplate, loadTemplates, persistCustomTemplates } from "./utils/templateStorage";
 
@@ -167,6 +175,14 @@ function getStoredTheme() {
   return window.localStorage.getItem("labelit-ui-theme") || "dark";
 }
 
+function getCurrentRoute() {
+  if (typeof window === "undefined") {
+    return "/";
+  }
+
+  return window.location.pathname || "/";
+}
+
 function App() {
   const [templates, setTemplates] = useState(loadTemplates);
   const [activeTemplate, setActiveTemplate] = useState("shipping");
@@ -180,7 +196,11 @@ function App() {
   const [previewOffset, setPreviewOffset] = useState({ x: 0, y: 0 });
   const [dragState, setDragState] = useState(null);
   const [theme, setTheme] = useState(getStoredTheme);
-  const [session, setSession] = useState(getStoredSession);
+  const [session, setSession] = useState(null);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
+  const [authError, setAuthError] = useState("");
+  const [route, setRoute] = useState(getCurrentRoute);
   const barcodeRef = useRef(null);
   const labelRef = useRef(null);
   const activeSlotRef = useRef(null);
@@ -268,6 +288,52 @@ function App() {
   }, [theme]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    const bootstrapSession = async () => {
+      try {
+        if (!cancelled) {
+          setRoute(getCurrentRoute());
+        }
+
+        if (getCurrentRoute() === "/auth/callback" || getCurrentRoute() === "/auth/error") {
+          if (!cancelled) {
+            setAuthReady(true);
+          }
+          return;
+        }
+
+        const result = await tryRestoreSession();
+        if (!cancelled) {
+          setSession(result.ok ? result.session : null);
+          setAuthError(result.ok ? "" : result.message || "");
+        }
+      } finally {
+        if (!cancelled) {
+          setAuthReady(true);
+        }
+      }
+    };
+
+    bootstrapSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setRoute(getCurrentRoute());
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, []);
+
+  useEffect(() => {
     if (showStartupOverlay) {
       return;
     }
@@ -325,22 +391,56 @@ function App() {
     });
   };
 
-  const handleSignIn = email => {
-    const result = signInWithEmail(email);
-    if (result.ok) {
-      setSession(result.session);
+  const navigateTo = (path, replace = false) => {
+    if (typeof window === "undefined") {
+      return;
     }
 
-    return result;
+    window.history[replace ? "replaceState" : "pushState"]({}, "", path);
+    setRoute(path);
   };
 
-  const handleSignOut = () => {
-    signOut();
+  const handleSignIn = async payload => {
+    setAuthLoading(true);
+    try {
+      const result = await signInWithEmail(payload);
+      if (result.ok && result.session) {
+        setSession(result.session);
+        setAuthError("");
+        navigateTo("/", true);
+      }
+
+      return result;
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleRegister = async payload => {
+    setAuthLoading(true);
+    try {
+      const result = await registerWithEmail(payload);
+      if (result.ok && result.session) {
+        setSession(result.session);
+        setAuthError("");
+        navigateTo("/", true);
+      }
+
+      return result;
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
     setSession(null);
+    setAuthError("");
     setShowStartupOverlay(true);
+    navigateTo("/", true);
   };
 
-  const handleProviderSignIn = provider => signInWithProvider(provider);
+  const handleProviderSignIn = provider => startProviderSignIn(provider);
 
   const applyTemplate = key => {
     const template = templates[key];
@@ -652,7 +752,76 @@ ${form.showNote ? `^FO40,${noteBodyY}^FD${safe(form.note)}^FS` : ""}
     };
   }, [dragState, previewOffset.x, previewOffset.y]);
 
-  if (!session) {
+  useEffect(() => {
+    let cancelled = false;
+
+    const handleOAuthCallback = async () => {
+      if (route !== "/auth/callback") {
+        return;
+      }
+
+      setAuthLoading(true);
+      setAuthError("");
+
+      const result = await hydrateOAuthSessionFromQuery(window.location.search);
+      if (cancelled) {
+        return;
+      }
+
+      if (result.ok) {
+        setSession(result.session);
+        setShowStartupOverlay(true);
+        navigateTo("/", true);
+      } else {
+        setSession(null);
+        setAuthError(result.message || t("authCallbackFailed"));
+        navigateTo(`/auth/error?error=${encodeURIComponent(result.message || t("authCallbackFailed"))}`, true);
+      }
+
+      setAuthLoading(false);
+    };
+
+    handleOAuthCallback();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [route, t]);
+
+  if (route === "/auth/callback") {
+    return (
+      <AuthStatusScreen
+        language={form.uiLanguage}
+        theme={theme}
+        title={t("authCallbackTitle")}
+        copy={t("authCallbackCopy")}
+        onLanguageChange={value => updateField("uiLanguage", value)}
+        onThemeToggle={() => setTheme(current => (current === "dark" ? "light" : "dark"))}
+        t={t}
+      />
+    );
+  }
+
+  if (route === "/auth/error") {
+    const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
+    const errorMessage = params.get("error") || authError || t("authDefaultError");
+
+    return (
+      <AuthStatusScreen
+        language={form.uiLanguage}
+        theme={theme}
+        title={t("authErrorTitle")}
+        copy={errorMessage}
+        actionLabel={t("authErrorBack")}
+        onAction={() => navigateTo("/", true)}
+        onLanguageChange={value => updateField("uiLanguage", value)}
+        onThemeToggle={() => setTheme(current => (current === "dark" ? "light" : "dark"))}
+        t={t}
+      />
+    );
+  }
+
+  if (!authReady || !session) {
     return (
       <AuthScreen
         language={form.uiLanguage}
@@ -660,7 +829,10 @@ ${form.showNote ? `^FO40,${noteBodyY}^FD${safe(form.note)}^FS` : ""}
         onLanguageChange={value => updateField("uiLanguage", value)}
         onThemeToggle={() => setTheme(current => (current === "dark" ? "light" : "dark"))}
         onSubmit={handleSignIn}
+        onRegister={handleRegister}
         onProviderSubmit={handleProviderSignIn}
+        loading={authLoading}
+        checkingSession={!authReady}
         t={t}
       />
     );

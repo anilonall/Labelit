@@ -134,12 +134,40 @@ body {
   margin-top: 24px;
 }
 
+.auth-layout-single {
+  grid-template-columns: 1fr;
+}
+
 .auth-card,
 .auth-sidecard {
   padding: 20px;
   border-radius: 22px;
   border: 1px solid var(--startup-card-border);
   background: var(--startup-card-bg);
+}
+
+.auth-mode-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 6px;
+  margin-bottom: 16px;
+  border-radius: 16px;
+  border: 1px solid var(--field-border);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.auth-mode-button {
+  margin: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--panel-text);
+  box-shadow: none;
+}
+
+.auth-mode-button.active {
+  background: linear-gradient(135deg, #fb923c, #ea580c);
+  border-color: rgba(255, 255, 255, 0.14);
 }
 
 .auth-provider-list {
@@ -211,6 +239,10 @@ body {
 
 .auth-sidecard {
   align-self: start;
+}
+
+.auth-status-card {
+  max-width: 540px;
 }
 
 .auth-sidecard strong {

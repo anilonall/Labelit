@@ -30,37 +30,61 @@ export function AuthScreen({
   onLanguageChange,
   onThemeToggle,
   onSubmit,
+  onRegister,
   onProviderSubmit,
+  loading,
+  checkingSession,
   t
 }) {
+  const [mode, setMode] = useState("login");
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
 
-  const handleSubmit = event => {
+  const handleSubmit = async event => {
     event.preventDefault();
-    const result = onSubmit(email);
+    setError("");
+    setInfo("");
 
-    if (!result?.ok) {
-      setError(t("authUnauthorized"));
-      setInfo("");
+    const payload = {
+      email,
+      name,
+      password
+    };
+
+    if (mode === "register" && password !== confirmPassword) {
+      setError(t("authPasswordMismatch"));
       return;
     }
 
-    setError("");
-    setInfo("");
+    const result = mode === "register"
+      ? await onRegister(payload)
+      : await onSubmit(payload);
+
+    if (!result?.ok) {
+      setError(
+        result?.message || (mode === "register" ? t("authRegisterFailed") : t("authLoginFailed"))
+      );
+      return;
+    }
+
+    if (result?.message) {
+      setInfo(result.message);
+    }
   };
 
   const handleProviderSubmit = provider => {
     const result = onProviderSubmit(provider);
     if (!result?.ok) {
-      setError("");
-      setInfo(t("authProviderPending", { provider }));
+      setError(result?.message || t("authProviderPending", { provider }));
       return;
     }
 
     setError("");
-    setInfo("");
+    setInfo(t("authProviderRedirect"));
   };
 
   return (
@@ -69,7 +93,7 @@ export function AuthScreen({
         <div className="startup-head auth-head">
           <div>
             <p className="eyebrow">{t("authEyebrow")}</p>
-            <h1>{t("authTitle")}</h1>
+            <h1>{mode === "register" ? t("authRegisterTitle") : t("authTitle")}</h1>
           </div>
           <HeaderControls
             language={language}
@@ -80,10 +104,37 @@ export function AuthScreen({
           />
         </div>
 
-        <p className="panel-copy">{t("authCopy")}</p>
+        <p className="panel-copy">{checkingSession ? t("authCheckingSession") : t("authCopy")}</p>
 
         <div className="auth-layout">
           <form className="auth-card" onSubmit={handleSubmit}>
+            <div className="auth-mode-switch" aria-label={t("authModeLabel")}>
+              <button
+                type="button"
+                className={`auth-mode-button ${mode === "login" ? "active" : ""}`}
+                onClick={() => {
+                  setMode("login");
+                  setError("");
+                  setInfo("");
+                }}
+                disabled={loading || checkingSession}
+              >
+                {t("authLoginTab")}
+              </button>
+              <button
+                type="button"
+                className={`auth-mode-button ${mode === "register" ? "active" : ""}`}
+                onClick={() => {
+                  setMode("register");
+                  setError("");
+                  setInfo("");
+                }}
+                disabled={loading || checkingSession}
+              >
+                {t("authRegisterTab")}
+              </button>
+            </div>
+
             <div className="auth-provider-list">
               {socialProviders.map(provider => (
                 <button
@@ -91,6 +142,7 @@ export function AuthScreen({
                   type="button"
                   className="social-button"
                   onClick={() => handleProviderSubmit(provider.id)}
+                  disabled={loading || checkingSession}
                 >
                   <span className="social-button-content">
                     <ProviderIcon providerId={provider.id} />
@@ -104,6 +156,18 @@ export function AuthScreen({
               <span>{t("authOr")}</span>
             </div>
 
+            <label htmlFor="authName">{t("authNameLabel")}</label>
+            <input
+              id="authName"
+              type="text"
+              autoComplete="name"
+              placeholder={t("authNamePlaceholder")}
+              value={name}
+              onChange={event => setName(event.target.value)}
+              disabled={loading || checkingSession}
+              required
+            />
+
             <label htmlFor="authEmail">{t("authEmailLabel")}</label>
             <input
               id="authEmail"
@@ -112,19 +176,54 @@ export function AuthScreen({
               placeholder={t("authEmailPlaceholder")}
               value={email}
               onChange={event => setEmail(event.target.value)}
+              disabled={loading || checkingSession}
               required
             />
+
+            <label htmlFor="authPassword">{t("authPasswordLabel")}</label>
+            <input
+              id="authPassword"
+              type="password"
+              autoComplete={mode === "register" ? "new-password" : "current-password"}
+              placeholder={t("authPasswordPlaceholder")}
+              value={password}
+              onChange={event => setPassword(event.target.value)}
+              disabled={loading || checkingSession}
+              required
+            />
+
+            {mode === "register" && (
+              <>
+                <label htmlFor="authConfirmPassword">{t("authConfirmPasswordLabel")}</label>
+                <input
+                  id="authConfirmPassword"
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder={t("authConfirmPasswordPlaceholder")}
+                  value={confirmPassword}
+                  onChange={event => setConfirmPassword(event.target.value)}
+                  disabled={loading || checkingSession}
+                  required
+                />
+              </>
+            )}
 
             {error && <p className="auth-error">{error}</p>}
             {info && <p className="auth-hint">{info}</p>}
 
-            <button type="submit">{t("authSubmit")}</button>
+            <button type="submit" disabled={loading || checkingSession}>
+              {checkingSession
+                ? t("authCheckingSession")
+                : loading
+                  ? (mode === "register" ? t("authRegistering") : t("authSigningIn"))
+                  : (mode === "register" ? t("authRegisterSubmit") : t("authSubmit"))}
+            </button>
           </form>
 
           <div className="auth-sidecard">
-            <strong>{t("authMembershipTitle")}</strong>
-            <p>{t("authMembershipCopy")}</p>
-            <p className="auth-hint">{t("authFrontendNotice")}</p>
+            <strong>{mode === "register" ? t("authRegisterSideTitle") : t("authMembershipTitle")}</strong>
+            <p>{mode === "register" ? t("authRegisterSideCopy") : t("authMembershipCopy")}</p>
+            <p className="auth-hint">{t("authBackendNotice")}</p>
           </div>
         </div>
       </div>
