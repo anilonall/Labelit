@@ -1,3 +1,5 @@
+import { CollapsibleGroup } from "./CollapsibleGroup";
+
 export function TemplateSection({
   visibleTemplates,
   activeTemplate,
@@ -25,25 +27,29 @@ export function TemplateSection({
           <button className="ghost-button" type="button" onClick={onSaveTemplateFile}>{t("saveJson")}</button>
         </div>
       </div>
-      <label htmlFor="templateName">{t("templateName")}</label>
-      <input id="templateName" value={templateName} onChange={event => onTemplateNameChange(event.target.value)} placeholder={t("templatePlaceholder")} />
-      <div className="row tight-row">
-        <button type="button" onClick={onSaveToLibrary}>{t("addToLibrary")}</button>
-        <button type="button" className="ghost-button" onClick={onClearLibrary} disabled={!hasCustomTemplates}>{t("clearLibrary")}</button>
-      </div>
-      <label>{t("savedTemplates")}</label>
-      {visibleTemplates.length ? (
-        <div className="template-grid">
-          {visibleTemplates.map(([key, template]) => (
-            <button key={key} type="button" className={`template-card ${activeTemplate === key ? "active" : ""}`} onClick={() => onApplyTemplate(key)}>
-              <strong>{template.name}</strong>
-              <span>{template.description}</span>
-            </button>
-          ))}
+      <CollapsibleGroup title={t("templateName")} subtitle={templateName || t("templates")} defaultOpen>
+        <label htmlFor="templateName">{t("templateName")}</label>
+        <input id="templateName" value={templateName} onChange={event => onTemplateNameChange(event.target.value)} placeholder={t("templatePlaceholder")} />
+        <div className="row tight-row">
+          <button type="button" onClick={onSaveToLibrary}>{t("addToLibrary")}</button>
+          <button type="button" className="ghost-button" onClick={onClearLibrary} disabled={!hasCustomTemplates}>{t("clearLibrary")}</button>
         </div>
-      ) : (
-        <p className="scan-hint">{t("noSavedTemplates")}</p>
-      )}
+      </CollapsibleGroup>
+
+      <CollapsibleGroup title={t("savedTemplates")} subtitle={String(visibleTemplates.length)} defaultOpen={false}>
+        {visibleTemplates.length ? (
+          <div className="template-grid">
+            {visibleTemplates.map(([key, template]) => (
+              <button key={key} type="button" className={`template-card ${activeTemplate === key ? "active" : ""}`} onClick={() => onApplyTemplate(key)}>
+                <strong>{template.name}</strong>
+                <span>{template.description}</span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="scan-hint">{t("noSavedTemplates")}</p>
+        )}
+      </CollapsibleGroup>
       <input ref={templateInputRef} type="file" accept="application/json,.json" className="hidden" onChange={onTemplateFileChange} />
     </section>
   );

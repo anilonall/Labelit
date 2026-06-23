@@ -215,43 +215,23 @@ function drawVectorLabelWithAssets(pdf, state, x, y, w, h, barcodeData, qrData) 
 }
 
 export async function createPdfDocument(state) {
-  const pageFormat = state.printMode === "a4" ? "a4" : [mmToInch(state.labelWidthMm), mmToInch(state.labelHeightMm)];
-  const orientation = state.printMode === "a4" ? "portrait" : (state.labelWidthMm > state.labelHeightMm ? "landscape" : "portrait");
+  const pageFormat = [mmToInch(state.labelWidthMm), mmToInch(state.labelHeightMm)];
+  const orientation = state.labelWidthMm > state.labelHeightMm ? "landscape" : "portrait";
   const pdf = new jsPDF({ orientation, unit: "in", format: pageFormat, compress: false });
   const barcodeCanvas = await buildBarcodeCanvas(state.barcodeText || "0000000000", state.showBarcodeValue);
   const barcodeData = barcodeCanvas.toDataURL("image/png");
   const qrData = await buildQrImage(state.barcodeText || "0000000000", state.showQr);
 
-  if (state.printMode === "a4") {
-    const cols = 1;
-    const rows = 1;
-    const labelWidth = mmToInch(state.labelWidthMm);
-    const labelHeight = mmToInch(state.labelHeightMm);
-    const marginTop = mmToInch(state.pageMarginTop);
-    const marginSide = mmToInch(state.pageMarginSide);
-    const gap = mmToInch(state.sheetGap);
-
-    for (let row = 0; row < rows; row += 1) {
-      for (let col = 0; col < cols; col += 1) {
-        const x = marginSide + col * (labelWidth + gap);
-        const y = marginTop + row * (labelHeight + gap);
-        if (x + labelWidth <= 8.27 && y + labelHeight <= 11.69) {
-          drawVectorLabelWithAssets(pdf, state, x, y, labelWidth, labelHeight, barcodeData, qrData);
-        }
-      }
-    }
-  } else {
-    drawVectorLabelWithAssets(
-      pdf,
-      state,
-      0,
-      0,
-      mmToInch(state.labelWidthMm),
-      mmToInch(state.labelHeightMm),
-      barcodeData,
-      qrData
-    );
-  }
+  drawVectorLabelWithAssets(
+    pdf,
+    state,
+    0,
+    0,
+    mmToInch(state.labelWidthMm),
+    mmToInch(state.labelHeightMm),
+    barcodeData,
+    qrData
+  );
 
   return pdf;
 }

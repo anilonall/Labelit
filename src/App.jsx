@@ -30,9 +30,8 @@ import { safe, slugify } from "./utils/helpers";
 import { createPdfDocument } from "./utils/pdfExport";
 import { isBuiltInTemplate, loadTemplates, persistCustomTemplates } from "./utils/templateStorage";
 
-function normalizeSheetLayout(value) {
-  return value === "single" ? "single" : "single";
-}
+const FIXED_PRINT_MODE = "thermal";
+const FIXED_SHEET_LAYOUT = "single";
 
 function collectContentState(form) {
   return {
@@ -93,9 +92,7 @@ function buildCustomTemplatePayload(form) {
     showGridOverlay: form.showGridOverlay,
     gridStepMm: Number(form.gridStepMm),
     uiLanguage: form.uiLanguage,
-    printMode: form.printMode,
     sizeCategory: form.sizeCategory,
-    sheetLayout: form.sheetLayout,
     sizePreset: form.sizePreset,
     labelWidthMm: Number(form.labelWidthMm),
     labelHeightMm: Number(form.labelHeightMm),
@@ -122,7 +119,6 @@ function saveTemplateFile(payload) {
 }
 
 function buildMergedForm(form) {
-  const normalizedSheetLayout = normalizeSheetLayout(form.sheetLayout);
   const weightText = formatMeasurement(form.weightValue, form.weightUnit);
   const distanceText = formatMeasurement(form.distanceValue, form.distanceUnit);
   const deliveryTimeText = formatDeliveryTime(form.deliveryTime, form.uiLanguage);
@@ -137,7 +133,8 @@ function buildMergedForm(form) {
   return {
     printableState: {
       ...form,
-      sheetLayout: normalizedSheetLayout,
+      printMode: FIXED_PRINT_MODE,
+      sheetLayout: FIXED_SHEET_LAYOUT,
       weight: weightText,
       distance: distanceText,
       deliveryTime: deliveryTimeText,
@@ -211,12 +208,9 @@ function App() {
 
   const t = getTranslator(form.uiLanguage || "tr");
   const { printableState, stats } = buildMergedForm(form);
-  const layout = form.printMode === "thermal" ? "single" : form.sheetLayout;
   const slotCount = 1;
-  const previewModeTitle = form.printMode === "thermal" ? t("thermalPreviewTitle") : t("a4PreviewTitle");
-  const previewModeCopy = form.printMode === "thermal"
-    ? t("thermalPreviewCopy", { width: Number(form.labelWidthMm).toFixed(1), height: Number(form.labelHeightMm).toFixed(1) })
-    : t("a4PreviewCopy", { top: form.pageMarginTop, side: form.pageMarginSide });
+  const previewModeTitle = t("thermalPreviewTitle");
+  const previewModeCopy = t("thermalPreviewCopy", { width: Number(form.labelWidthMm).toFixed(1), height: Number(form.labelHeightMm).toFixed(1) });
   const logoStatus = form.logoDataUrl ? t("logoUploaded") : t("textLogoActive");
   const hasCustomTemplates = Object.keys(templates).some(key => !isBuiltInTemplate(key));
   const customTemplateEntries = Object.entries(templates).filter(([key]) => !isBuiltInTemplate(key));
@@ -235,8 +229,6 @@ function App() {
       form.pageMarginTop,
       form.pageMarginSide,
       form.sheetGap,
-      form.printMode,
-      form.sheetLayout,
       form.density,
       form.showQr,
       form.showNote,
@@ -274,8 +266,7 @@ function App() {
   });
 
   const sheetPageStyle = useSheetFrame({
-    sheetPreviewRef,
-    printMode: form.printMode
+    sheetPreviewRef
   });
 
   useEffect(() => {
@@ -368,8 +359,12 @@ function App() {
 
   const updateField = (key, value) => {
     setForm(current => {
-      const next = { ...current, [key]: value };
-      next.sheetLayout = normalizeSheetLayout(next.sheetLayout);
+      const next = {
+        ...current,
+        [key]: value,
+        printMode: FIXED_PRINT_MODE,
+        sheetLayout: FIXED_SHEET_LAYOUT
+      };
 
       if (key === "sizePreset") {
         const preset = getPresetByKey(next.sizeCategory, value);
@@ -404,7 +399,7 @@ function App() {
         }));
       }
 
-      if (["printMode", "sheetLayout", "sizePreset", "labelWidthMm", "labelHeightMm", "pageMarginTop", "pageMarginSide", "sheetGap"].includes(key)) {
+      if (["sizePreset", "labelWidthMm", "labelHeightMm", "pageMarginTop", "pageMarginSide", "sheetGap"].includes(key)) {
         setPreviewOffset({ x: 0, y: 0 });
       }
 
@@ -478,7 +473,8 @@ function App() {
       ...current,
       templateName: template.name || "Benim Şablonum",
       ...template,
-      sheetLayout: normalizeSheetLayout(template.sheetLayout)
+      printMode: FIXED_PRINT_MODE,
+      sheetLayout: FIXED_SHEET_LAYOUT
     }));
   };
 
@@ -507,6 +503,8 @@ function App() {
       barcodeText: "",
       note: "",
       customFields: [],
+      printMode: FIXED_PRINT_MODE,
+      sheetLayout: FIXED_SHEET_LAYOUT,
       layoutItems: normalizeLayoutItems(blankTemplate.layoutItems)
     });
   };
@@ -643,7 +641,8 @@ function App() {
       uiLanguage: styleState.uiLanguage || form.uiLanguage,
       customFields: normalizeCustomFields(contentState.customFields || styleState.customFields || form.customFields),
       layoutItems: normalizeLayoutItems(styleState.layoutItems || form.layoutItems),
-      sheetLayout: normalizeSheetLayout(styleState.sheetLayout || form.sheetLayout)
+      printMode: FIXED_PRINT_MODE,
+      sheetLayout: FIXED_SHEET_LAYOUT
     };
 
     setForm(merged);
@@ -969,7 +968,6 @@ ${form.showNote ? `^FO40,${noteBodyY}^FD${safe(form.note)}^FS` : ""}
         <PreviewPane
           form={form}
           t={t}
-          layout={layout}
           slotCount={slotCount}
           sheetPreviewRef={sheetPreviewRef}
           sheetPageStyle={sheetPageStyle}

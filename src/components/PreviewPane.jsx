@@ -3,7 +3,6 @@ import { LabelPreview } from "./LabelPreview";
 export function PreviewPane({
   form,
   t,
-  layout,
   slotCount,
   sheetPreviewRef,
   sheetPageStyle,
@@ -41,13 +40,13 @@ export function PreviewPane({
         }}
       >
         <div
-          className={`sheet-page layout-${layout} ${form.printMode === "thermal" ? "thermal-stage" : ""}`}
+          className="sheet-page layout-single thermal-stage"
           style={{
             ...sheetPageStyle,
-            paddingTop: form.printMode === "thermal" ? "24px" : `${Math.max(4, Number(form.pageMarginTop) / 2)}%`,
-            paddingLeft: form.printMode === "thermal" ? "24px" : `${Math.max(4, Number(form.pageMarginSide) / 2)}%`,
-            paddingRight: form.printMode === "thermal" ? "24px" : `${Math.max(4, Number(form.pageMarginSide) / 2)}%`,
-            paddingBottom: form.printMode === "thermal" ? "24px" : `${Math.max(4, Number(form.pageMarginTop) / 2)}%`,
+            paddingTop: "24px",
+            paddingLeft: "24px",
+            paddingRight: "24px",
+            paddingBottom: "24px",
             gap: `${Math.max(8, Number(form.sheetGap) * 1.4)}px`
           }}
         >
