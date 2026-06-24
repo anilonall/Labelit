@@ -21,9 +21,21 @@ function SavedTemplateThumb() {
   );
 }
 
+function BuiltInTemplateThumb({ templateKey }) {
+  return (
+    <div className={`mini-label theme-${templateKey || "shipping"}`}>
+      <div className="mini-top"></div>
+      <div className="mini-block accent"></div>
+      <div className="mini-grid"></div>
+      <div className="mini-barcode"></div>
+    </div>
+  );
+}
+
 export function StartupOverlay({
   onBlankStart,
   onTemplateStart,
+  builtInTemplates,
   savedTemplates,
   language,
   theme,
@@ -48,25 +60,52 @@ export function StartupOverlay({
           />
         </div>
         <p className="panel-copy">{t("startupCopy")}</p>
-        <div className="startup-grid">
-          <StartupCard title={t("blankLabel")} description={t("blankLabelDescription")} onClick={onBlankStart}>
-            <div className="blank-sheet"></div>
-          </StartupCard>
-          {savedTemplates.map(([key, template]) => (
-            <StartupCard
-              key={key}
-              title={template.name}
-              description={template.description || t("savedTemplateDescription")}
-              templateKey={key}
-              onClick={() => onTemplateStart(key)}
-            >
-              <SavedTemplateThumb />
+        <div className="startup-section">
+          <div className="section-head">
+            <h2>{t("startFresh")}</h2>
+            <p className="panel-copy compact-copy">{t("startFreshCopy")}</p>
+          </div>
+          <div className="startup-grid startup-grid-featured">
+            <StartupCard title={t("blankLabel")} description={t("blankLabelDescription")} onClick={onBlankStart}>
+              <div className="blank-sheet"></div>
             </StartupCard>
-          ))}
+            {builtInTemplates.map(([key, template]) => (
+              <StartupCard
+                key={key}
+                title={template.name}
+                description={template.description}
+                templateKey={key}
+                onClick={() => onTemplateStart(key)}
+              >
+                <BuiltInTemplateThumb templateKey={key} />
+              </StartupCard>
+            ))}
+          </div>
         </div>
-        {!savedTemplates.length && (
-          <p className="panel-copy">{t("noSavedStartup")}</p>
-        )}
+
+        <div className="startup-section">
+          <div className="section-head">
+            <h2>{t("savedTemplates")}</h2>
+            <p className="panel-copy compact-copy">{t("savedTemplateSectionCopy")}</p>
+          </div>
+          {savedTemplates.length ? (
+            <div className="startup-grid">
+              {savedTemplates.map(([key, template]) => (
+                <StartupCard
+                  key={key}
+                  title={template.name}
+                  description={template.description || t("savedTemplateDescription")}
+                  templateKey={key}
+                  onClick={() => onTemplateStart(key)}
+                >
+                  <SavedTemplateThumb />
+                </StartupCard>
+              ))}
+            </div>
+          ) : (
+            <p className="panel-copy">{t("noSavedStartup")}</p>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -11,7 +11,7 @@ import { StartupOverlay } from "./components/StartupOverlay";
 import { TemplateSection } from "./components/TemplateSection";
 import { getTranslator } from "./constants/i18n";
 import { normalizeLayoutItems } from "./constants/layoutItems";
-import { blankTemplate, buildInitialForm, getLocalizedBuiltInTemplate } from "./constants/templates";
+import { blankTemplate, buildInitialForm, builtInTemplateKeys, getLocalizedBuiltInTemplate } from "./constants/templates";
 import { getGroupByKey, getPresetByKey } from "./constants/sizePresets";
 import { useCodeAssets } from "./hooks/useCodeAssets";
 import { usePreviewTransform } from "./hooks/usePreviewTransform";
@@ -32,6 +32,11 @@ import { isBuiltInTemplate, loadTemplates, persistCustomTemplates } from "./util
 
 const FIXED_PRINT_MODE = "thermal";
 const FIXED_SHEET_LAYOUT = "single";
+const HISTORY_DEBOUNCE_MS = 280;
+
+function cloneSnapshot(value) {
+  return JSON.parse(JSON.stringify(value));
+}
 
 function collectContentState(form) {
   return {
@@ -181,6 +186,7 @@ function getCurrentRoute() {
 }
 
 function App() {
+  const [activePanelTab, setActivePanelTab] = useState("setup");
   const [templates, setTemplates] = useState(loadTemplates);
   const [activeTemplate, setActiveTemplate] = useState("shipping");
   const [form, setForm] = useState(() => ({
@@ -192,6 +198,8 @@ function App() {
   const [scale, setScale] = useState(1);
   const [previewOffset, setPreviewOffset] = useState({ x: 0, y: 0 });
   const [dragState, setDragState] = useState(null);
+  const [activeInspectorTarget, setActiveInspectorTarget] = useState(null);
+  const [historyState, setHistoryState] = useState({ canUndo: false, canRedo: false });
   const [theme, setTheme] = useState(getStoredTheme);
   const [session, setSession] = useState(null);
   const [authLoading, setAuthLoading] = useState(false);
@@ -205,6 +213,11 @@ function App() {
   const logoInputRef = useRef(null);
   const templateInputRef = useRef(null);
   const panelRef = useRef(null);
+  const formRef = useRef(null);
+  const historyRef = useRef({ past: [], future: [] });
+  const historyBaselineRef = useRef(null);
+  const historyTimerRef = useRef(null);
+  const suppressHistoryRef = useRef(false);
 
   const t = getTranslator(form.uiLanguage || "tr");
   const { printableState, stats } = buildMergedForm(form);
@@ -214,11 +227,31 @@ function App() {
   const logoStatus = form.logoDataUrl ? t("logoUploaded") : t("textLogoActive");
   const hasCustomTemplates = Object.keys(templates).some(key => !isBuiltInTemplate(key));
   const customTemplateEntries = Object.entries(templates).filter(([key]) => !isBuiltInTemplate(key));
-  const visibleTemplates = customTemplateEntries;
+  const builtInTemplateEntries = builtInTemplateKeys
+    .map(key => [key, getLocalizedBuiltInTemplate(key, form.uiLanguage)])
+    .filter(([, template]) => Boolean(template));
   const localizedActiveBuiltInTemplate = isBuiltInTemplate(activeTemplate)
     ? getLocalizedBuiltInTemplate(activeTemplate, form.uiLanguage)
     : null;
   const displayTemplateName = localizedActiveBuiltInTemplate?.name || form.templateName || "Shipping Label";
+  const workflowTabs = [
+    { key: "setup", label: t("workflowSetup"), description: t("workflowSetupCopy") },
+    { key: "content", label: t("workflowContent"), description: t("workflowContentCopy") },
+    { key: "style", label: t("workflowStyle"), description: t("workflowStyleCopy") },
+    { key: "export", label: t("workflowExport"), description: t("workflowExportCopy") }
+  ];
+  const activeWorkflowTab = workflowTabs.find(tab => tab.key === activePanelTab) || workflowTabs[0];
+  const inspectorTabMap = {
+    brand: "style",
+    title: "style",
+    sender: "content",
+    recipient: "content",
+    primary: "content",
+    secondary: "content",
+    barcode: "content",
+    footer: "content",
+    custom: "content"
+  };
 
   const previewTransform = usePreviewTransform({
     activeSlotRef,
@@ -270,6 +303,10 @@ function App() {
   });
 
   useEffect(() => {
+    formRef.current = form;
+  }, [form]);
+
+  useEffect(() => {
     persistCustomTemplates(templates);
   }, [templates]);
 
@@ -282,6 +319,12 @@ function App() {
     window.localStorage.setItem("labelit-ui-theme", theme);
   }, [theme]);
 
+  useEffect(() => () => {
+    if (historyTimerRef.current) {
+      window.clearTimeout(historyTimerRef.current);
+    }
+  }, []);
+
   useEffect(() => {
     if (!isBuiltInTemplate(activeTemplate)) {
       return;
@@ -292,11 +335,11 @@ function App() {
       return;
     }
 
-    setForm(current => ({
+    applyFormChange(current => ({
       ...current,
       templateName: localizedTemplate.name,
       labelTitle: localizedTemplate.labelTitle
-    }));
+    }), { trackHistory: false });
   }, [activeTemplate, form.uiLanguage]);
 
   useEffect(() => {
@@ -357,8 +400,62 @@ function App() {
     });
   }, [showStartupOverlay]);
 
-  const updateField = (key, value) => {
+  const syncHistoryState = () => {
+    setHistoryState({
+      canUndo: historyRef.current.past.length > 0 || Boolean(historyBaselineRef.current),
+      canRedo: historyRef.current.future.length > 0
+    });
+  };
+
+  const commitPendingHistory = () => {
+    if (!historyBaselineRef.current) {
+      return;
+    }
+
+    historyRef.current.past.push(historyBaselineRef.current);
+    historyRef.current.future = [];
+    historyBaselineRef.current = null;
+    syncHistoryState();
+  };
+
+  const scheduleHistory = previousForm => {
+    if (suppressHistoryRef.current) {
+      return;
+    }
+
+    if (!historyBaselineRef.current) {
+      historyBaselineRef.current = cloneSnapshot(previousForm);
+    }
+
+    if (historyTimerRef.current) {
+      window.clearTimeout(historyTimerRef.current);
+    }
+
+    historyTimerRef.current = window.setTimeout(() => {
+      commitPendingHistory();
+      historyTimerRef.current = null;
+    }, HISTORY_DEBOUNCE_MS);
+
+    syncHistoryState();
+  };
+
+  const applyFormChange = (updater, { trackHistory = true } = {}) => {
     setForm(current => {
+      const next = typeof updater === "function" ? updater(current) : updater;
+      if (next === current) {
+        return current;
+      }
+
+      if (trackHistory) {
+        scheduleHistory(current);
+      }
+
+      return next;
+    });
+  };
+
+  const updateField = (key, value) => {
+    applyFormChange(current => {
       const next = {
         ...current,
         [key]: value,
@@ -406,6 +503,74 @@ function App() {
       return next;
     });
   };
+
+  const restoreHistorySnapshot = snapshot => {
+    suppressHistoryRef.current = true;
+    setForm(cloneSnapshot(snapshot));
+    window.setTimeout(() => {
+      suppressHistoryRef.current = false;
+    }, 0);
+  };
+
+  const handleUndo = () => {
+    if (historyTimerRef.current) {
+      window.clearTimeout(historyTimerRef.current);
+      historyTimerRef.current = null;
+    }
+    commitPendingHistory();
+
+    const previous = historyRef.current.past.pop();
+    if (!previous) {
+      syncHistoryState();
+      return;
+    }
+
+    historyRef.current.future.push(cloneSnapshot(formRef.current));
+    restoreHistorySnapshot(previous);
+    syncHistoryState();
+  };
+
+  const handleRedo = () => {
+    if (historyTimerRef.current) {
+      window.clearTimeout(historyTimerRef.current);
+      historyTimerRef.current = null;
+    }
+
+    const next = historyRef.current.future.pop();
+    if (!next) {
+      syncHistoryState();
+      return;
+    }
+
+    historyRef.current.past.push(cloneSnapshot(formRef.current));
+    restoreHistorySnapshot(next);
+    syncHistoryState();
+  };
+
+  useEffect(() => {
+    const handleKeyDown = event => {
+      const metaOrCtrl = event.metaKey || event.ctrlKey;
+      if (!metaOrCtrl) {
+        return;
+      }
+
+      if (event.key.toLowerCase() === "z" && !event.shiftKey) {
+        event.preventDefault();
+        handleUndo();
+        return;
+      }
+
+      if ((event.key.toLowerCase() === "z" && event.shiftKey) || event.key.toLowerCase() === "y") {
+        event.preventDefault();
+        handleRedo();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  });
 
   const navigateTo = (path, replace = false) => {
     if (typeof window === "undefined") {
@@ -469,7 +634,7 @@ function App() {
     setActiveTemplate(key);
     setScale(1);
     setPreviewOffset({ x: 0, y: 0 });
-    setForm(current => ({
+    applyFormChange(current => ({
       ...current,
       templateName: template.name || "Benim Şablonum",
       ...template,
@@ -482,7 +647,7 @@ function App() {
     setActiveTemplate("blank");
     setScale(1);
     setPreviewOffset({ x: 0, y: 0 });
-    setForm({
+    applyFormChange({
       ...buildInitialForm(form.uiLanguage),
       ...getLocalizedBuiltInTemplate("blank", form.uiLanguage),
       templateName: getLocalizedBuiltInTemplate("blank", form.uiLanguage)?.name || t("blankLabel"),
@@ -510,7 +675,7 @@ function App() {
   };
 
   const addCustomField = () => {
-    setForm(current => ({
+    applyFormChange(current => ({
       ...current,
       customFields: [
         ...(current.customFields || []),
@@ -526,7 +691,7 @@ function App() {
   };
 
   const updateCustomField = (fieldId, patch) => {
-    setForm(current => ({
+    applyFormChange(current => ({
       ...current,
       customFields: normalizeCustomFields(current.customFields).map(field => (
         field.id === fieldId ? { ...field, ...patch } : field
@@ -535,7 +700,7 @@ function App() {
   };
 
   const removeCustomField = fieldId => {
-    setForm(current => ({
+    applyFormChange(current => ({
       ...current,
       customFields: normalizeCustomFields(current.customFields).filter(field => field.id !== fieldId)
     }));
@@ -645,7 +810,7 @@ function App() {
       sheetLayout: FIXED_SHEET_LAYOUT
     };
 
-    setForm(merged);
+    applyFormChange(merged);
     upsertCustomTemplate(buildCustomTemplatePayload(merged));
   };
 
@@ -717,12 +882,22 @@ ${form.showNote ? `^FO40,${noteBodyY}^FD${safe(form.note)}^FS` : ""}
     });
   };
 
+  const setPreviewScale = value => {
+    setPreviewOffset({ x: 0, y: 0 });
+    setScale(Math.min(5, Math.max(0.35, value)));
+  };
+
+  const resetPreviewView = () => {
+    setScale(1);
+    setPreviewOffset({ x: 0, y: 0 });
+  };
+
   const handleWheelZoom = deltaY => {
     changeSize(deltaY < 0 ? 1 : -1);
   };
 
   const updateLayoutItem = (itemKey, patch) => {
-    setForm(current => ({
+    applyFormChange(current => ({
       ...current,
       layoutItems: {
         ...normalizeLayoutItems(current.layoutItems),
@@ -732,6 +907,17 @@ ${form.showNote ? `^FO40,${noteBodyY}^FD${safe(form.note)}^FS` : ""}
         }
       }
     }));
+  };
+
+  const handleInspectorTargetChange = target => {
+    setActiveInspectorTarget(target);
+    if (target && inspectorTabMap[target]) {
+      setActivePanelTab(inspectorTabMap[target]);
+    }
+  };
+
+  const clearInspectorTarget = () => {
+    setActiveInspectorTarget(null);
   };
 
   const startDrag = event => {
@@ -873,6 +1059,7 @@ ${form.showNote ? `^FO40,${noteBodyY}^FD${safe(form.note)}^FS` : ""}
             <StartupOverlay
               onBlankStart={startWithBlankLabel}
               onTemplateStart={startWithTemplate}
+              builtInTemplates={builtInTemplateEntries.filter(([key]) => key !== "blank")}
               savedTemplates={customTemplateEntries}
               language={form.uiLanguage}
               theme={theme}
@@ -913,56 +1100,102 @@ ${form.showNote ? `^FO40,${noteBodyY}^FD${safe(form.note)}^FS` : ""}
               </div>
             </div>
             <p className="panel-copy">{t("appDescription")}</p>
+            <div className="workflow-tabs" role="tablist" aria-label={t("workflowTabs")}>
+              {workflowTabs.map(tab => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  role="tab"
+                  className={`workflow-tab ${activePanelTab === tab.key ? "active" : ""}`}
+                  aria-selected={activePanelTab === tab.key}
+                  onClick={() => setActivePanelTab(tab.key)}
+                >
+                  <strong>{tab.label}</strong>
+                  <span>{tab.description}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
-          <TemplateSection
-            t={t}
-            visibleTemplates={visibleTemplates}
-            activeTemplate={activeTemplate}
-            isBuiltInTemplate={isBuiltInTemplate}
-            templateName={form.templateName}
-            onTemplateNameChange={value => updateField("templateName", value)}
-            onDeleteTemplate={deleteCurrentTemplate}
-            onLoadTemplateClick={() => templateInputRef.current?.click()}
-            onSaveTemplateFile={saveCurrentTemplateToFile}
-            onSaveToLibrary={saveCurrentTemplateToLibrary}
-            onClearLibrary={clearTemplateLibrary}
-            hasCustomTemplates={hasCustomTemplates}
-            onApplyTemplate={applyTemplate}
-            templateInputRef={templateInputRef}
-            onTemplateFileChange={loadTemplateFromFile}
-          />
+          <div className="workflow-panel">
+            <div className="workflow-panel-head">
+              <div>
+                <p className="eyebrow">{t("currentStep")}</p>
+                <h2>{activeWorkflowTab.label}</h2>
+              </div>
+              <div className="workflow-panel-meta">
+                <p className="panel-copy compact-copy">{activeWorkflowTab.description}</p>
+                <div className="history-actions">
+                  <button type="button" className="ghost-button" onClick={handleUndo} disabled={!historyState.canUndo}>{t("undo")}</button>
+                  <button type="button" className="ghost-button" onClick={handleRedo} disabled={!historyState.canRedo}>{t("redo")}</button>
+                </div>
+              </div>
+            </div>
 
-          <PrintSettingsSection form={form} language={form.uiLanguage} t={t} onFieldChange={updateField} />
+            {activePanelTab === "setup" && (
+              <>
+                <TemplateSection
+                  t={t}
+                  builtInTemplates={builtInTemplateEntries}
+                  savedTemplates={customTemplateEntries}
+                  activeTemplate={activeTemplate}
+                  isBuiltInTemplate={isBuiltInTemplate}
+                  templateName={form.templateName}
+                  onTemplateNameChange={value => updateField("templateName", value)}
+                  onDeleteTemplate={deleteCurrentTemplate}
+                  onLoadTemplateClick={() => templateInputRef.current?.click()}
+                  onSaveTemplateFile={saveCurrentTemplateToFile}
+                  onSaveToLibrary={saveCurrentTemplateToLibrary}
+                  onClearLibrary={clearTemplateLibrary}
+                  hasCustomTemplates={hasCustomTemplates}
+                  onApplyTemplate={applyTemplate}
+                  templateInputRef={templateInputRef}
+                  onTemplateFileChange={loadTemplateFromFile}
+                />
 
-          <BrandSection
-            form={form}
-            t={t}
-            logoStatus={logoStatus}
-            logoInputRef={logoInputRef}
-            onFieldChange={updateField}
-            onLogoUpload={handleLogoUpload}
-            onZoomIn={() => changeSize(1)}
-            onZoomOut={() => changeSize(-1)}
-          />
+                <PrintSettingsSection form={form} language={form.uiLanguage} t={t} onFieldChange={updateField} />
+              </>
+            )}
 
-          <ContentSection
-            form={form}
-            t={t}
-            onFieldChange={updateField}
-            onAddCustomField={addCustomField}
-            onUpdateCustomField={updateCustomField}
-            onRemoveCustomField={removeCustomField}
-          />
+            {activePanelTab === "content" && (
+              <ContentSection
+                form={form}
+                t={t}
+                onFieldChange={updateField}
+                onAddCustomField={addCustomField}
+                onUpdateCustomField={updateCustomField}
+                onRemoveCustomField={removeCustomField}
+                highlightTarget={activeInspectorTarget}
+                onFocusTarget={handleInspectorTargetChange}
+                onBlurTarget={clearInspectorTarget}
+              />
+            )}
 
-          <ExportSection
-            zplOutput={zplOutput}
-            t={t}
-            onDownloadPdf={downloadPdf}
-            onPrint={() => window.print()}
-            onExportZpl={exportZpl}
-            onZplChange={setZplOutput}
-          />
+            {activePanelTab === "style" && (
+              <BrandSection
+                form={form}
+                t={t}
+                logoStatus={logoStatus}
+                logoInputRef={logoInputRef}
+                onFieldChange={updateField}
+                onLogoUpload={handleLogoUpload}
+                highlightTarget={activeInspectorTarget}
+                onFocusTarget={handleInspectorTargetChange}
+                onBlurTarget={clearInspectorTarget}
+              />
+            )}
+
+            {activePanelTab === "export" && (
+              <ExportSection
+                zplOutput={zplOutput}
+                t={t}
+                onDownloadPdf={downloadPdf}
+                onPrint={() => window.print()}
+                onExportZpl={exportZpl}
+                onZplChange={setZplOutput}
+              />
+            )}
+          </div>
         </aside>
 
         <PreviewPane
@@ -985,6 +1218,13 @@ ${form.showNote ? `^FO40,${noteBodyY}^FD${safe(form.note)}^FS` : ""}
           onAddCustomField={addCustomField}
           onRemoveCustomField={removeCustomField}
           onWheelZoom={handleWheelZoom}
+          scale={scale}
+          onZoomIn={() => changeSize(1)}
+          onZoomOut={() => changeSize(-1)}
+          onZoomPreset={setPreviewScale}
+          onResetView={resetPreviewView}
+          activeInspectorTarget={activeInspectorTarget}
+          onInspectTargetChange={handleInspectorTargetChange}
         />
       </div>
     </>

@@ -1,7 +1,8 @@
 import { CollapsibleGroup } from "./CollapsibleGroup";
 
 export function TemplateSection({
-  visibleTemplates,
+  builtInTemplates,
+  savedTemplates,
   activeTemplate,
   isBuiltInTemplate,
   t,
@@ -36,10 +37,25 @@ export function TemplateSection({
         </div>
       </CollapsibleGroup>
 
-      <CollapsibleGroup title={t("savedTemplates")} subtitle={String(visibleTemplates.length)} defaultOpen={false}>
-        {visibleTemplates.length ? (
+      <CollapsibleGroup title={t("readyTemplates")} subtitle={String(builtInTemplates.length)} defaultOpen>
+        {builtInTemplates.length ? (
           <div className="template-grid">
-            {visibleTemplates.map(([key, template]) => (
+            {builtInTemplates.map(([key, template]) => (
+              <button key={key} type="button" className={`template-card ${activeTemplate === key ? "active" : ""}`} onClick={() => onApplyTemplate(key)}>
+                <strong>{template.name}</strong>
+                <span>{template.description}</span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="scan-hint">{t("noBuiltInTemplates")}</p>
+        )}
+      </CollapsibleGroup>
+
+      <CollapsibleGroup title={t("savedTemplates")} subtitle={String(savedTemplates.length)} defaultOpen={false}>
+        {savedTemplates.length ? (
+          <div className="template-grid">
+            {savedTemplates.map(([key, template]) => (
               <button key={key} type="button" className={`template-card ${activeTemplate === key ? "active" : ""}`} onClick={() => onApplyTemplate(key)}>
                 <strong>{template.name}</strong>
                 <span>{template.description}</span>

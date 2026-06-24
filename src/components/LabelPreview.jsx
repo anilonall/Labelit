@@ -345,7 +345,9 @@ export function LabelPreview({
   onLayoutItemChange,
   onFieldChange,
   onAddCustomField,
-  onRemoveCustomField
+  onRemoveCustomField,
+  activeInspectorTarget,
+  onInspectTargetChange
 }) {
   const { weightText, distanceText, deliveryTimeText, deliveryTypeText, visiblePrimaryCount, visibleSecondaryCount } = stats;
   const horizontalTicks = buildTicks(Number(form.labelWidthMm) || 100);
@@ -360,6 +362,10 @@ export function LabelPreview({
   const labelBodyRef = useRef(null);
   const [contextMenu, setContextMenu] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
+  const selectItem = itemKey => {
+    setSelectedItem(itemKey);
+    onInspectTargetChange?.(itemKey);
+  };
 
   useEffect(() => {
     const closeMenu = event => {
@@ -482,6 +488,7 @@ export function LabelPreview({
       onPointerDown={event => {
         if (event.button === 0) {
           setSelectedItem(null);
+          onInspectTargetChange?.(null);
           onPointerDown?.(event);
         }
       }}
@@ -516,9 +523,13 @@ export function LabelPreview({
         className={`label ${form.density === "compact" ? "compact" : ""}`}
         onContextMenu={event => {
           setSelectedItem(null);
+          onInspectTargetChange?.(null);
           openAddMenu(event);
         }}
-        onClick={() => setSelectedItem(null)}
+        onClick={() => {
+          setSelectedItem(null);
+          onInspectTargetChange?.(null);
+        }}
         style={{
           width: `${form.labelWidthMm}mm`,
           height: `${form.labelHeightMm}mm`,
@@ -576,8 +587,8 @@ export function LabelPreview({
           onChange={onLayoutItemChange}
           accentColor={form.accentColor}
           labelRef={labelBodyRef}
-          selected={selectedItem === "brand"}
-          onSelect={setSelectedItem}
+          selected={selectedItem === "brand" || activeInspectorTarget === "brand"}
+          onSelect={selectItem}
           onContextMenu={buildHideBlockMenu("brand")}
         >
           <div className="logo-wrap">
@@ -595,8 +606,8 @@ export function LabelPreview({
           onChange={onLayoutItemChange}
           accentColor={form.accentColor}
           labelRef={labelBodyRef}
-          selected={selectedItem === "title"}
-          onSelect={setSelectedItem}
+          selected={selectedItem === "title" || activeInspectorTarget === "title"}
+          onSelect={selectItem}
           onContextMenu={buildHideBlockMenu("title")}
         >
           <div className="cargo" style={{ color: form.accentColor }}>{form.labelTitle}</div>
@@ -610,8 +621,8 @@ export function LabelPreview({
             onChange={onLayoutItemChange}
             accentColor={form.accentColor}
             labelRef={labelBodyRef}
-            selected={selectedItem === "sender"}
-            onSelect={setSelectedItem}
+            selected={selectedItem === "sender" || activeInspectorTarget === "sender"}
+            onSelect={selectItem}
             onContextMenu={buildHideBlockMenu("sender")}
           >
             <div className="block free-block">
@@ -629,8 +640,8 @@ export function LabelPreview({
             onChange={onLayoutItemChange}
             accentColor={form.accentColor}
             labelRef={labelBodyRef}
-            selected={selectedItem === "recipient"}
-            onSelect={setSelectedItem}
+            selected={selectedItem === "recipient" || activeInspectorTarget === "recipient"}
+            onSelect={selectItem}
             onContextMenu={buildHideBlockMenu("recipient")}
           >
             <div className={`block recipient free-block ${form.highlightRecipient ? "highlighted" : ""}`} style={{ borderColor: form.highlightRecipient ? form.accentColor : "transparent" }}>
@@ -648,8 +659,8 @@ export function LabelPreview({
           onChange={onLayoutItemChange}
           accentColor={form.accentColor}
           labelRef={labelBodyRef}
-          selected={selectedItem === "primary"}
-          onSelect={setSelectedItem}
+          selected={selectedItem === "primary" || activeInspectorTarget === "primary"}
+          onSelect={selectItem}
           onContextMenu={buildHideBlockMenu("primary")}
         >
           <div className={`grid free-grid ${visiblePrimaryCount <= 1 ? "single-stat" : ""} ${visiblePrimaryCount === 2 ? "two-stats" : ""}`}>
@@ -679,8 +690,8 @@ export function LabelPreview({
             onChange={onLayoutItemChange}
             accentColor={form.accentColor}
             labelRef={labelBodyRef}
-            selected={selectedItem === "secondary"}
-            onSelect={setSelectedItem}
+            selected={selectedItem === "secondary" || activeInspectorTarget === "secondary"}
+            onSelect={selectItem}
             onContextMenu={buildHideBlockMenu("secondary")}
           >
             <div className={`grid free-grid ${visibleSecondaryCount <= 1 ? "single-stat" : ""} ${visibleSecondaryCount === 2 ? "two-stats" : ""}`}>
@@ -710,8 +721,8 @@ export function LabelPreview({
             onChange={onLayoutItemChange}
             accentColor={form.accentColor}
             labelRef={labelBodyRef}
-            selected={selectedItem === "custom"}
-            onSelect={setSelectedItem}
+            selected={selectedItem === "custom" || activeInspectorTarget === "custom"}
+            onSelect={selectItem}
             onContextMenu={buildHideBlockMenu("custom")}
           >
             <div
@@ -741,10 +752,10 @@ export function LabelPreview({
           itemKey="barcode"
             frame={layoutItems.barcode}
             onChange={onLayoutItemChange}
-            accentColor={form.accentColor}
+          accentColor={form.accentColor}
           labelRef={labelBodyRef}
-          selected={selectedItem === "barcode"}
-          onSelect={setSelectedItem}
+          selected={selectedItem === "barcode" || activeInspectorTarget === "barcode"}
+          onSelect={selectItem}
           onContextMenu={buildHideBlockMenu("barcode")}
         >
             <svg ref={barcodeRef} id="barcode" />
@@ -758,8 +769,8 @@ export function LabelPreview({
             onChange={onLayoutItemChange}
             accentColor={form.accentColor}
             labelRef={labelBodyRef}
-            selected={selectedItem === "footer"}
-            onSelect={setSelectedItem}
+            selected={selectedItem === "footer" || activeInspectorTarget === "footer"}
+            onSelect={selectItem}
             onContextMenu={buildHideBlockMenu("footer")}
           >
             <div className={`bottom free-bottom ${!form.showQr ? "no-qr" : ""}`}>

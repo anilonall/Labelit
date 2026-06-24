@@ -19,7 +19,14 @@ export function PreviewPane({
   onFieldChange,
   onAddCustomField,
   onRemoveCustomField,
-  onWheelZoom
+  onWheelZoom,
+  scale,
+  onZoomIn,
+  onZoomOut,
+  onZoomPreset,
+  onResetView,
+  activeInspectorTarget,
+  onInspectTargetChange
 }) {
   return (
     <main className="preview-wrap">
@@ -28,7 +35,17 @@ export function PreviewPane({
           <p className="eyebrow">{t("livePreview")}</p>
           <h2>{previewModeTitle}</h2>
         </div>
-        <p className="panel-copy compact-copy">{previewModeCopy}</p>
+        <div className="preview-meta-actions">
+          <p className="panel-copy compact-copy">{previewModeCopy}</p>
+          <div className="preview-toolbar" aria-label={t("previewToolbar")}>
+            <button type="button" className="preview-tool" onClick={onResetView}>{t("zoomFit")}</button>
+            <button type="button" className="preview-tool" onClick={() => onZoomPreset?.(1)}>{t("zoom100")}</button>
+            <button type="button" className="preview-tool" onClick={() => onZoomPreset?.(2)}>{t("zoom200")}</button>
+            <button type="button" className="preview-tool" onClick={onZoomOut}>{t("zoomOut")}</button>
+            <button type="button" className="preview-tool" onClick={onZoomIn}>{t("zoomIn")}</button>
+            <span className="preview-scale-indicator">{t("zoomLevel", { value: scale.toFixed(scale >= 1 ? 1 : 2) })}</span>
+          </div>
+        </div>
       </div>
 
       <section
@@ -70,6 +87,8 @@ export function PreviewPane({
                   onFieldChange={onFieldChange}
                   onAddCustomField={onAddCustomField}
                   onRemoveCustomField={onRemoveCustomField}
+                  activeInspectorTarget={activeInspectorTarget}
+                  onInspectTargetChange={onInspectTargetChange}
                 />
               ) : (
                 <div className="slot-placeholder">{t("emptySlot")}</div>

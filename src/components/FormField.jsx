@@ -1,6 +1,6 @@
-export function FormField({ id, label, type = "text", value, onChange, ...props }) {
+export function FormField({ id, label, type = "text", value, onChange, wrapperClassName = "", ...props }) {
   return (
-    <>
+    <div className={wrapperClassName}>
       <label htmlFor={id}>{label}</label>
       <input
         id={id}
@@ -9,6 +9,6 @@ export function FormField({ id, label, type = "text", value, onChange, ...props 
         onChange={event => onChange(event.target.value)}
         {...props}
       />
-    </>
+    </div>
   );
 }
