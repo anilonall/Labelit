@@ -5,10 +5,21 @@ import { customFieldSourceOptions, getCustomFieldSourceLabel } from "../utils/cu
 export function ContentSection({
   form,
   t,
+  batchRecords,
+  activeBatchRecordId,
+  batchImportMessage,
+  batchInputRef,
   onFieldChange,
   onAddCustomField,
   onUpdateCustomField,
   onRemoveCustomField,
+  onBatchImportClick,
+  onBatchFileChange,
+  onBatchClear,
+  onBatchTemplateDownload,
+  onBatchRecordSelect,
+  onBatchPrev,
+  onBatchNext,
   highlightTarget,
   onFocusTarget,
   onBlurTarget
@@ -39,6 +50,42 @@ export function ContentSection({
   return (
     <section className="panel-section">
       <h2>{t("content")}</h2>
+      <CollapsibleGroup title={t("batchImport")} subtitle={batchRecords.length ? t("batchImportCount", { count: batchRecords.length }) : t("batchImportSubtitle")} defaultOpen>
+        <div className="section-head">
+          <div>
+            <p className="scan-hint">{t("batchImportHint")}</p>
+          </div>
+          <div className="action-group">
+            <button type="button" className="ghost-button" onClick={onBatchTemplateDownload}>{t("batchTemplate")}</button>
+            <button type="button" className="ghost-button" onClick={onBatchImportClick}>{t("batchImportAction")}</button>
+            <button type="button" className="ghost-button danger-button" onClick={onBatchClear} disabled={!batchRecords.length}>{t("batchClear")}</button>
+          </div>
+        </div>
+        {batchImportMessage ? <p className="scan-hint">{batchImportMessage}</p> : null}
+        {batchRecords.length ? (
+          <>
+            <div className="batch-toolbar">
+              <button type="button" className="ghost-button" onClick={onBatchPrev} disabled={activeBatchRecordId === batchRecords[0]?.id}>{t("batchPrev")}</button>
+              <button type="button" className="ghost-button" onClick={onBatchNext} disabled={activeBatchRecordId === batchRecords[batchRecords.length - 1]?.id}>{t("batchNext")}</button>
+            </div>
+            <div className="batch-record-list">
+              {batchRecords.map((record, index) => (
+                <button
+                  key={record.id}
+                  type="button"
+                  className={`batch-record-card ${activeBatchRecordId === record.id ? "active" : ""}`}
+                  onClick={() => onBatchRecordSelect(record.id)}
+                >
+                  <strong>{record.title}</strong>
+                  <span>{t("batchRecordMeta", { index: index + 1, fields: Object.keys(record.raw || {}).length })}</span>
+                </button>
+              ))}
+            </div>
+          </>
+        ) : null}
+        <input ref={batchInputRef} type="file" accept=".csv,.tsv,.json,text/csv,application/json,text/tab-separated-values" className="hidden" onChange={onBatchFileChange} />
+      </CollapsibleGroup>
+
       <CollapsibleGroup title={t("fieldVisibility")} subtitle={`${visibilityItems.filter(([key]) => form[key]).length} / ${visibilityItems.length}`} defaultOpen>
         <div className="toggle-grid">
           {visibilityItems.map(([key, text]) => (

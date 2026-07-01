@@ -235,3 +235,39 @@ export async function createPdfDocument(state) {
 
   return pdf;
 }
+
+export async function createBatchPdfDocument(states) {
+  const printableStates = Array.isArray(states) ? states.filter(Boolean) : [];
+  if (!printableStates.length) {
+    return null;
+  }
+
+  const firstState = printableStates[0];
+  const pageFormat = [mmToInch(firstState.labelWidthMm), mmToInch(firstState.labelHeightMm)];
+  const orientation = firstState.labelWidthMm > firstState.labelHeightMm ? "landscape" : "portrait";
+  const pdf = new jsPDF({ orientation, unit: "in", format: pageFormat, compress: false });
+
+  for (let index = 0; index < printableStates.length; index += 1) {
+    const state = printableStates[index];
+    const barcodeCanvas = await buildBarcodeCanvas(state.barcodeText || "0000000000", state.showBarcodeValue);
+    const barcodeData = barcodeCanvas.toDataURL("image/png");
+    const qrData = await buildQrImage(state.barcodeText || "0000000000", state.showQr);
+
+    if (index > 0) {
+      pdf.addPage(pageFormat, orientation);
+    }
+
+    drawVectorLabelWithAssets(
+      pdf,
+      state,
+      0,
+      0,
+      mmToInch(state.labelWidthMm),
+      mmToInch(state.labelHeightMm),
+      barcodeData,
+      qrData
+    );
+  }
+
+  return pdf;
+}

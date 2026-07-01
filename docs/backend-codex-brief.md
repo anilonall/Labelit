@@ -41,6 +41,9 @@ Frontend tarafinda aktif olarak bulunan davranislar:
 - Ozel alanlar hem manuel hem de hesaplanan kaynaklardan gelebiliyor.
 - Kullanici sablonu local library'ye kaydedebiliyor.
 - Kullanici JSON olarak sablon export/import yapabiliyor.
+- Kullanici CSV / TSV / JSON formatinda toplu kayit ice aktarabiliyor.
+- Ice aktardigi kayitlar arasinda tek tek gecip ayni tasarimi farkli verilerle onizleyebiliyor.
+- Toplu kayitlari tek PDF icinde cok sayfali olarak disa aktarabiliyor.
 - PDF export var.
 - ZPL output uretiliyor.
 - Canli preview var.
@@ -56,6 +59,7 @@ Su anda backend'e tasinmasi gereken ana konular:
 - Yetki kontrolu
 - Kaydedilen sablonlarin veritabaninda tutulmasi
 - JSON import/export icin kalici saklama veya dosya kayit akisi
+- toplu kayit import gecmisi ve tekrar kullanilabilir batch setleri
 - Logo dosyasi yukleme ve saklama
 - Istege bagli olarak PDF/ZPL server-side uretimi
 - Audit log / kim neyi ne zaman kaydetti takibi
@@ -343,6 +347,36 @@ Alanlar:
 - `note`
 - `customFields`
 
+### 4.3 Batch Import Record
+
+Frontend artik tek tasarim uzerinde coklu veri kaydi ile calisabiliyor.
+Bu nedenle backend tarafinda batch record yapisi dusunulmeli.
+
+Alanlar:
+
+- `recipientName`
+- `recipientAddress`
+- `senderName`
+- `senderAddress`
+- `orderNo`
+- `reference`
+- `weightValue`
+- `weightUnit`
+- `distanceValue`
+- `distanceUnit`
+- `deliveryTime`
+- `deliveryType`
+- `deliveryWindow`
+- `barcodeText`
+- `note`
+- `customFields`
+- `rawRowJson`
+
+Not:
+
+- Frontend su an CSV / TSV / JSON dosyasini client-side parse ediyor.
+- Backend tarafinda ayni mantik ile import endpointi eklenirse buyuk batch'ler saklanabilir, dogrulanabilir ve tekrar acilabilir.
+
 ## 5. Custom Field Yapisi
 
 Frontend'e gore bir custom field su sekilde:
@@ -464,9 +498,18 @@ Alternatif:
 ### Exports
 
 - `POST /exports/pdf`
+- `POST /exports/pdf/batch`
 - `POST /exports/zpl`
 - `POST /exports/json`
 - `GET /exports/:id`
+
+### Batch Imports
+
+- `POST /batch-imports/parse`
+- `POST /batch-imports`
+- `GET /batch-imports`
+- `GET /batch-imports/:id`
+- `DELETE /batch-imports/:id`
 
 ### Membership / Admin
 
@@ -561,6 +604,7 @@ Opsiyonel ama faydali alanlar:
 - template CRUD
 - logo upload
 - template import/export
+- batch import parse + save
 - DB persistence
 
 ### Ikinci Faz
@@ -598,13 +642,16 @@ Bu projede React tabanli bir label editor frontend'i var. Backend tarafinda gerc
 
 Gereksinimler:
 - PostgreSQL + Prisma kullan
-- users, organizations, organization_members, auth_accounts, sessions, label_templates, assets, exports, audit_logs tablolarini tasarla
+- users, organizations, organization_members, auth_accounts, sessions, label_templates, assets, exports, audit_logs ve batch_imports tablolarini tasarla
 - JWT access token + refresh token auth akisini kur
 - /auth/me, /auth/login, /auth/logout, /auth/refresh endpointlerini yaz
 - Google ve GitHub OAuth icin genisletilebilir altyapi hazirla
 - Template CRUD endpointlerini yaz
 - Template definition ve content alanlarini JSON olarak sakla
 - Logo upload endpointi ekle
+- CSV / TSV / JSON alan batch import parse endpointi yaz
+- batch kayitlarini kalici olarak saklayacak endpointleri yaz
+- coklu kaydi tek PDF export job'ina ceviren batch export endpointi ekle
 - Ownership ve authorization middleware ekle
 - Input validation ekle
 - OpenAPI/Swagger dokumani uret
@@ -615,6 +662,14 @@ brandName, labelTitle, accentColor, backgroundColor, textColor, borderColor, bor
 
 Content JSON yapisi:
 senderName, senderAddress, recipientName, recipientAddress, orderNo, reference, weightValue, weightUnit, distanceValue, distanceUnit, deliveryTime, deliveryType, deliveryWindow, barcodeText, note, customFields.
+
+Batch import beklentisi:
+- frontend su an ayni label tasarimini birden fazla kayda uyguluyor
+- import dosyasi CSV, TSV veya JSON olabiliyor
+- kolon isimleri orderNo, reference, recipientName, recipientAddress, senderName, senderAddress, barcode, note gibi alanlara maplenmeli
+- taninmayan kolonlar custom field olarak saklanmali
+- backend buyuk batch'leri validate edip tekrar getirilebilir sekilde saklamali
+- batch export endpointi tum kayitlari tek PDF olarak uretebilmeli
 ```
 
 ## 15. Kisa Sonuc

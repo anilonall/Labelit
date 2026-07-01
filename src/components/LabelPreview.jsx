@@ -226,6 +226,72 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
+function InlineEditableText({
+  value,
+  placeholder = "",
+  multiline = false,
+  className = "",
+  onCommit
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value || "");
+
+  useEffect(() => {
+    if (!editing) {
+      setDraft(value || "");
+    }
+  }, [value, editing]);
+
+  if (editing) {
+    const sharedProps = {
+      value: draft,
+      autoFocus: true,
+      className: `inline-edit-input ${className}`.trim(),
+      onChange: event => setDraft(event.target.value),
+      onBlur: () => {
+        setEditing(false);
+        onCommit?.(draft);
+      },
+      onPointerDown: event => event.stopPropagation(),
+      onClick: event => event.stopPropagation(),
+      onKeyDown: event => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          setDraft(value || "");
+          setEditing(false);
+        }
+
+        if (!multiline && event.key === "Enter") {
+          event.preventDefault();
+          setEditing(false);
+          onCommit?.(draft);
+        }
+
+        if (multiline && event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+          event.preventDefault();
+          setEditing(false);
+          onCommit?.(draft);
+        }
+      }
+    };
+
+    return multiline ? <textarea {...sharedProps} rows={3} /> : <input {...sharedProps} />;
+  }
+
+  return (
+    <span
+      className={`inline-edit-display ${className}`.trim()}
+      onDoubleClick={event => {
+        event.stopPropagation();
+        setEditing(true);
+      }}
+      title="Cift tikla duzenle"
+    >
+      {value || placeholder}
+    </span>
+  );
+}
+
 function EditableBlock({ itemKey, frame, onChange, children, accentColor, labelRef, selected, onSelect, onContextMenu }) {
   const [editState, setEditState] = useState(null);
 
@@ -346,6 +412,7 @@ export function LabelPreview({
   onFieldChange,
   onAddCustomField,
   onRemoveCustomField,
+  onLayoutItemDrop,
   activeInspectorTarget,
   onInspectTargetChange
 }) {
@@ -521,6 +588,30 @@ export function LabelPreview({
       <div
         ref={labelBodyRef}
         className={`label ${form.density === "compact" ? "compact" : ""}`}
+        onDragOver={event => {
+          const itemKey = event.dataTransfer?.types?.includes("application/x-labelit-layout-item");
+          if (!itemKey) {
+            return;
+          }
+          event.preventDefault();
+          event.dataTransfer.dropEffect = "move";
+        }}
+        onDrop={event => {
+          const itemKey = event.dataTransfer?.getData("application/x-labelit-layout-item") || event.dataTransfer?.getData("text/plain");
+          if (!itemKey) {
+            return;
+          }
+          event.preventDefault();
+          event.stopPropagation();
+          const bounds = labelBodyRef.current?.getBoundingClientRect();
+          if (!bounds) {
+            return;
+          }
+          const x = ((event.clientX - bounds.left) / bounds.width) * 100;
+          const y = ((event.clientY - bounds.top) / bounds.height) * 100;
+          onLayoutItemDrop?.(itemKey, { x, y });
+          selectItem(itemKey);
+        }}
         onContextMenu={event => {
           setSelectedItem(null);
           onInspectTargetChange?.(null);
@@ -593,7 +684,13 @@ export function LabelPreview({
         >
           <div className="logo-wrap">
             {form.logoDataUrl ? <img className="logo-image" alt="Logo" src={form.logoDataUrl} /> : (
-              form.brandName ? <div className="logo" style={{ color: form.accentColor }}>{form.brandName}</div> : null
+              <div className="logo" style={{ color: form.accentColor }}>
+                <InlineEditableText
+                  value={form.brandName}
+                  placeholder={t("logoBrand")}
+                  onCommit={nextValue => onFieldChange?.("brandName", nextValue)}
+                />
+              </div>
             )}
           </div>
         </EditableBlock>
@@ -610,7 +707,13 @@ export function LabelPreview({
           onSelect={selectItem}
           onContextMenu={buildHideBlockMenu("title")}
         >
-          <div className="cargo" style={{ color: form.accentColor }}>{form.labelTitle}</div>
+          <div className="cargo" style={{ color: form.accentColor }}>
+            <InlineEditableText
+              value={form.labelTitle}
+              placeholder={t("title")}
+              onCommit={nextValue => onFieldChange?.("labelTitle", nextValue)}
+            />
+          </div>
         </EditableBlock>
         )}
 
@@ -627,8 +730,23 @@ export function LabelPreview({
           >
             <div className="block free-block">
               <small>{t("labelSender")}</small>
-              <strong>{form.senderName}</strong>
-              {form.showSenderAddress && <p>{form.senderAddress}</p>}
+              <strong>
+                <InlineEditableText
+                  value={form.senderName}
+                  placeholder={t("labelSender")}
+                  onCommit={nextValue => onFieldChange?.("senderName", nextValue)}
+                />
+              </strong>
+              {form.showSenderAddress && (
+                <p>
+                  <InlineEditableText
+                    value={form.senderAddress}
+                    placeholder={t("senderAddress")}
+                    multiline
+                    onCommit={nextValue => onFieldChange?.("senderAddress", nextValue)}
+                  />
+                </p>
+              )}
             </div>
           </EditableBlock>
         )}
@@ -646,8 +764,23 @@ export function LabelPreview({
           >
             <div className={`block recipient free-block ${form.highlightRecipient ? "highlighted" : ""}`} style={{ borderColor: form.highlightRecipient ? form.accentColor : "transparent" }}>
               <small>{t("labelRecipient")}</small>
-              <strong>{form.recipientName}</strong>
-              {form.showRecipientAddress && <p>{form.recipientAddress}</p>}
+              <strong>
+                <InlineEditableText
+                  value={form.recipientName}
+                  placeholder={t("labelRecipient")}
+                  onCommit={nextValue => onFieldChange?.("recipientName", nextValue)}
+                />
+              </strong>
+              {form.showRecipientAddress && (
+                <p>
+                  <InlineEditableText
+                    value={form.recipientAddress}
+                    placeholder={t("recipientAddress")}
+                    multiline
+                    onCommit={nextValue => onFieldChange?.("recipientAddress", nextValue)}
+                  />
+                </p>
+              )}
             </div>
           </EditableBlock>
         )}
@@ -778,7 +911,14 @@ export function LabelPreview({
               {form.showNote && (
                 <div>
                   <small>{t("labelNote")}</small>
-                  <p>{form.note}</p>
+                  <p>
+                    <InlineEditableText
+                      value={form.note}
+                      placeholder={t("note")}
+                      multiline
+                      onCommit={nextValue => onFieldChange?.("note", nextValue)}
+                    />
+                  </p>
                 </div>
               )}
             </div>

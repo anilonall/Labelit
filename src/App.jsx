@@ -5,6 +5,7 @@ import { BrandSection } from "./components/BrandSection";
 import { ContentSection } from "./components/ContentSection";
 import { ExportSection } from "./components/ExportSection";
 import { HeaderControls } from "./components/HeaderControls";
+import { LayoutPaletteSection } from "./components/LayoutPaletteSection";
 import { PreviewPane } from "./components/PreviewPane";
 import { PrintSettingsSection } from "./components/PrintSettingsSection";
 import { StartupOverlay } from "./components/StartupOverlay";
@@ -25,9 +26,10 @@ import {
   tryRestoreSession
 } from "./utils/authClient";
 import { normalizeCustomFields, resolveCustomFields } from "./utils/customFields";
+import { parseBatchText, removeImportedCustomFields } from "./utils/batchImport";
 import { formatDeliveryTime, formatMeasurement } from "./utils/formatters";
-import { safe, slugify } from "./utils/helpers";
-import { createPdfDocument } from "./utils/pdfExport";
+import { clamp, safe, slugify } from "./utils/helpers";
+import { createBatchPdfDocument, createPdfDocument } from "./utils/pdfExport";
 import { isBuiltInTemplate, loadTemplates, persistCustomTemplates } from "./utils/templateStorage";
 
 const FIXED_PRINT_MODE = "thermal";
@@ -57,6 +59,25 @@ function collectContentState(form) {
     note: form.note,
     customFields: normalizeCustomFields(form.customFields)
   };
+}
+
+function mergeBatchRecordIntoForm(baseForm, record) {
+  if (!record) {
+    return baseForm;
+  }
+
+  return {
+    ...baseForm,
+    ...record.fields,
+    customFields: [
+      ...removeImportedCustomFields(normalizeCustomFields(baseForm.customFields)),
+      ...normalizeCustomFields(record.customFields)
+    ]
+  };
+}
+
+function buildBatchPrintableState(baseForm, record) {
+  return buildMergedForm(mergeBatchRecordIntoForm(baseForm, record)).printableState;
 }
 
 function buildCustomTemplatePayload(form) {
@@ -128,12 +149,43 @@ function buildMergedForm(form) {
   const distanceText = formatMeasurement(form.distanceValue, form.distanceUnit);
   const deliveryTimeText = formatDeliveryTime(form.deliveryTime, form.uiLanguage);
   const deliveryTypeText = [form.deliveryType, form.deliveryWindow].filter(Boolean).join(" / ");
+  const normalizedLayoutItems = normalizeLayoutItems(form.layoutItems);
   const resolvedCustomFields = resolveCustomFields(form.customFields, form, {
     weightText,
     distanceText,
     deliveryTimeText,
     deliveryTypeText
   });
+  const visiblePrimaryCount = [form.showOrderNo, form.showReference, form.showWeight].filter(Boolean).length;
+  const visibleSecondaryCount = [form.showDistance, form.showDeliveryTime, form.showDeliveryType].filter(Boolean).length;
+  const visibleCustomFieldCount = resolvedCustomFields.filter(field => field.visible !== false && (field.label || field.value)).length;
+  const visibleFieldCount = [
+    form.showSender,
+    form.showSenderAddress,
+    form.showRecipient,
+    form.showRecipientAddress,
+    form.showOrderNo,
+    form.showReference,
+    form.showWeight,
+    form.showDistance,
+    form.showDeliveryTime,
+    form.showDeliveryType,
+    form.showBarcode,
+    form.showBarcodeValue,
+    form.showQr,
+    form.showNote
+  ].filter(Boolean).length + visibleCustomFieldCount;
+  const visibleBlockCount = [
+    normalizedLayoutItems.brand.visible !== false,
+    normalizedLayoutItems.title.visible !== false,
+    form.showSender && normalizedLayoutItems.sender.visible !== false,
+    form.showRecipient && normalizedLayoutItems.recipient.visible !== false,
+    visiblePrimaryCount > 0 && normalizedLayoutItems.primary.visible !== false,
+    visibleSecondaryCount > 0 && normalizedLayoutItems.secondary.visible !== false,
+    visibleCustomFieldCount > 0 && normalizedLayoutItems.custom.visible !== false,
+    form.showBarcode && normalizedLayoutItems.barcode.visible !== false,
+    (form.showQr || form.showNote) && normalizedLayoutItems.footer.visible !== false
+  ].filter(Boolean).length;
 
   return {
     printableState: {
@@ -147,7 +199,7 @@ function buildMergedForm(form) {
       barcodeText: form.barcodeText || "0000000000",
       uiLanguage: form.uiLanguage,
       customFields: resolvedCustomFields,
-      layoutItems: normalizeLayoutItems(form.layoutItems)
+      layoutItems: normalizedLayoutItems
     },
     stats: {
       weightText,
@@ -155,8 +207,10 @@ function buildMergedForm(form) {
       deliveryTimeText,
       deliveryTypeText,
       customFields: resolvedCustomFields,
-      visiblePrimaryCount: [form.showOrderNo, form.showReference, form.showWeight].filter(Boolean).length,
-      visibleSecondaryCount: [form.showDistance, form.showDeliveryTime, form.showDeliveryType].filter(Boolean).length
+      visibleFieldCount,
+      visibleBlockCount,
+      visiblePrimaryCount,
+      visibleSecondaryCount
     }
   };
 }
@@ -195,6 +249,9 @@ function App() {
   }));
   const [showStartupOverlay, setShowStartupOverlay] = useState(true);
   const [zplOutput, setZplOutput] = useState("");
+  const [batchRecords, setBatchRecords] = useState([]);
+  const [activeBatchRecordId, setActiveBatchRecordId] = useState("");
+  const [batchImportMessage, setBatchImportMessage] = useState("");
   const [scale, setScale] = useState(1);
   const [previewOffset, setPreviewOffset] = useState({ x: 0, y: 0 });
   const [dragState, setDragState] = useState(null);
@@ -212,6 +269,7 @@ function App() {
   const sheetPreviewRef = useRef(null);
   const logoInputRef = useRef(null);
   const templateInputRef = useRef(null);
+  const batchInputRef = useRef(null);
   const panelRef = useRef(null);
   const formRef = useRef(null);
   const historyRef = useRef({ past: [], future: [] });
@@ -241,6 +299,37 @@ function App() {
     { key: "export", label: t("workflowExport"), description: t("workflowExportCopy") }
   ];
   const activeWorkflowTab = workflowTabs.find(tab => tab.key === activePanelTab) || workflowTabs[0];
+  const activeBatchRecord = batchRecords.find(record => record.id === activeBatchRecordId) || null;
+  const activeBatchIndex = activeBatchRecord ? batchRecords.findIndex(record => record.id === activeBatchRecord.id) : -1;
+  const normalizedLayoutItems = normalizeLayoutItems(form.layoutItems);
+  const layoutPaletteItems = Object.keys(normalizedLayoutItems).map(key => ({
+    key,
+    visible: normalizedLayoutItems[key].visible !== false
+  }));
+  const productionSummary = [
+    {
+      key: "size",
+      label: t("summarySize"),
+      value: `${Number(form.labelWidthMm).toFixed(0)} x ${Number(form.labelHeightMm).toFixed(0)} mm`
+    },
+    {
+      key: "content",
+      label: t("summaryFields"),
+      value: `${stats.visibleBlockCount} ${t("summaryFieldsValue")}`
+    },
+    {
+      key: "codes",
+      label: t("summaryCodes"),
+      value: [form.showBarcode ? "Barcode" : null, form.showQr ? "QR" : null].filter(Boolean).join(" + ") || t("summaryCodesOff")
+    },
+    {
+      key: "batch",
+      label: t("summaryBatch"),
+      value: batchRecords.length
+        ? t("summaryBatchValue", { current: activeBatchIndex + 1, total: batchRecords.length })
+        : t("summaryBatchEmpty")
+    }
+  ];
   const inspectorTabMap = {
     brand: "style",
     title: "style",
@@ -706,6 +795,79 @@ function App() {
     }));
   };
 
+  const applyBatchRecord = record => {
+    if (!record) {
+      return;
+    }
+
+    setActiveBatchRecordId(record.id);
+    applyFormChange(current => mergeBatchRecordIntoForm(current, record), { trackHistory: false });
+  };
+
+  const handleBatchFileChange = async event => {
+    const [file] = event.target.files || [];
+    if (!file) {
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      const records = parseBatchText(text, file.name);
+
+      if (!records.length) {
+        setBatchImportMessage(t("batchImportEmpty"));
+        return;
+      }
+
+      setBatchRecords(records);
+      setBatchImportMessage(t("batchImportSuccess", { count: records.length, name: file.name }));
+      applyBatchRecord(records[0]);
+      setActivePanelTab("content");
+      setShowStartupOverlay(false);
+    } catch {
+      setBatchImportMessage(t("batchImportError"));
+    } finally {
+      event.target.value = "";
+    }
+  };
+
+  const clearBatchRecords = () => {
+    setBatchRecords([]);
+    setActiveBatchRecordId("");
+    setBatchImportMessage("");
+    applyFormChange(current => ({
+      ...current,
+      customFields: removeImportedCustomFields(normalizeCustomFields(current.customFields))
+    }), { trackHistory: false });
+  };
+
+  const jumpToBatchRecord = direction => {
+    if (!batchRecords.length) {
+      return;
+    }
+
+    const currentIndex = Math.max(activeBatchIndex, 0);
+    const nextIndex = Math.min(batchRecords.length - 1, Math.max(0, currentIndex + direction));
+    applyBatchRecord(batchRecords[nextIndex]);
+  };
+
+  const downloadBatchTemplate = () => {
+    const csvTemplate = [
+      "recipientName,recipientAddress,orderNo,reference,barcode,note",
+      '"Ayse Yilmaz","Maslak Mah. Buyukdere Cad. No:12 Istanbul",ORD-1001,REF-9001,869000000001,"Kapi 3, aksam teslim"',
+      '"Mehmet Kara","Ataturk Bulvari No:44 Ankara",ORD-1002,REF-9002,869000000002,"Guvenlige birak"'
+    ].join("\n");
+    const blob = new Blob([csvTemplate], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "label-batch-template.csv";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
   const startWithTemplate = key => {
     applyTemplate(key);
     setShowStartupOverlay(false);
@@ -835,6 +997,15 @@ function App() {
     pdf.save("shipping-label.pdf");
   };
 
+  const downloadBatchPdf = async () => {
+    if (!batchRecords.length) {
+      return;
+    }
+
+    const pdf = await createBatchPdfDocument(batchRecords.map(record => buildBatchPrintableState(form, record)));
+    pdf?.save("shipping-label-batch.pdf");
+  };
+
   const exportZpl = () => {
     const visibleCustomFields = stats.customFields
       .filter(field => field.visible !== false && (field.label || field.value))
@@ -907,6 +1078,57 @@ ${form.showNote ? `^FO40,${noteBodyY}^FD${safe(form.note)}^FS` : ""}
         }
       }
     }));
+  };
+
+  const handleLayoutItemDrop = (itemKey, dropPoint) => {
+    const currentFrame = normalizedLayoutItems[itemKey];
+    if (!currentFrame) {
+      return;
+    }
+
+    const nextX = clamp(dropPoint.x - (currentFrame.w / 2), 0, 100 - currentFrame.w);
+    const nextY = clamp(dropPoint.y - (currentFrame.h / 2), 0, 100 - currentFrame.h);
+
+    applyFormChange(current => {
+      const next = {
+        ...current,
+        layoutItems: {
+          ...normalizeLayoutItems(current.layoutItems),
+          [itemKey]: {
+            ...normalizeLayoutItems(current.layoutItems)[itemKey],
+            visible: true,
+            x: nextX,
+            y: nextY
+          }
+        }
+      };
+
+      if (itemKey === "sender") {
+        next.showSender = true;
+      }
+
+      if (itemKey === "recipient") {
+        next.showRecipient = true;
+      }
+
+      if (itemKey === "barcode") {
+        next.showBarcode = true;
+      }
+
+      if (itemKey === "footer" && !next.showQr && !next.showNote) {
+        next.showNote = true;
+      }
+
+      if (itemKey === "primary" && !next.showOrderNo && !next.showReference && !next.showWeight) {
+        next.showOrderNo = true;
+      }
+
+      if (itemKey === "secondary" && !next.showDistance && !next.showDeliveryTime && !next.showDeliveryType) {
+        next.showDistance = true;
+      }
+
+      return next;
+    });
   };
 
   const handleInspectorTargetChange = target => {
@@ -1132,6 +1354,28 @@ ${form.showNote ? `^FO40,${noteBodyY}^FD${safe(form.note)}^FS` : ""}
               </div>
             </div>
 
+            <section className="panel-section summary-panel">
+              <div className="section-head">
+                <h2>{t("livePreview")}</h2>
+                {activeBatchRecord ? (
+                  <p className="panel-copy compact-copy">{t("activeBatchLabel", { label: activeBatchRecord.title })}</p>
+                ) : null}
+              </div>
+              <div className="preview-summary-grid preview-summary-grid-panel">
+                {productionSummary.map(item => (
+                  <div key={item.key} className="preview-summary-card">
+                    <small>{item.label}</small>
+                    <strong>{item.value}</strong>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <LayoutPaletteSection
+              t={t}
+              items={layoutPaletteItems}
+            />
+
             {activePanelTab === "setup" && (
               <>
                 <TemplateSection
@@ -1161,10 +1405,21 @@ ${form.showNote ? `^FO40,${noteBodyY}^FD${safe(form.note)}^FS` : ""}
               <ContentSection
                 form={form}
                 t={t}
+                batchRecords={batchRecords}
+                activeBatchRecordId={activeBatchRecordId}
+                batchImportMessage={batchImportMessage}
+                batchInputRef={batchInputRef}
                 onFieldChange={updateField}
                 onAddCustomField={addCustomField}
                 onUpdateCustomField={updateCustomField}
                 onRemoveCustomField={removeCustomField}
+                onBatchImportClick={() => batchInputRef.current?.click()}
+                onBatchFileChange={handleBatchFileChange}
+                onBatchClear={clearBatchRecords}
+                onBatchTemplateDownload={downloadBatchTemplate}
+                onBatchRecordSelect={recordId => applyBatchRecord(batchRecords.find(record => record.id === recordId))}
+                onBatchPrev={() => jumpToBatchRecord(-1)}
+                onBatchNext={() => jumpToBatchRecord(1)}
                 highlightTarget={activeInspectorTarget}
                 onFocusTarget={handleInspectorTargetChange}
                 onBlurTarget={clearInspectorTarget}
@@ -1189,7 +1444,9 @@ ${form.showNote ? `^FO40,${noteBodyY}^FD${safe(form.note)}^FS` : ""}
               <ExportSection
                 zplOutput={zplOutput}
                 t={t}
+                batchCount={batchRecords.length}
                 onDownloadPdf={downloadPdf}
+                onDownloadBatchPdf={downloadBatchPdf}
                 onPrint={() => window.print()}
                 onExportZpl={exportZpl}
                 onZplChange={setZplOutput}
@@ -1212,8 +1469,10 @@ ${form.showNote ? `^FO40,${noteBodyY}^FD${safe(form.note)}^FS` : ""}
           previewTransform={previewTransform}
           previewModeTitle={previewModeTitle}
           previewModeCopy={previewModeCopy}
+          activeBatchLabel={activeBatchRecord?.title || ""}
           stats={stats}
           onLayoutItemChange={updateLayoutItem}
+          onLayoutItemDrop={handleLayoutItemDrop}
           onFieldChange={updateField}
           onAddCustomField={addCustomField}
           onRemoveCustomField={removeCustomField}

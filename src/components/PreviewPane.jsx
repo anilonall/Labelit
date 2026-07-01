@@ -14,8 +14,10 @@ export function PreviewPane({
   previewTransform,
   previewModeTitle,
   previewModeCopy,
+  activeBatchLabel,
   stats,
   onLayoutItemChange,
+  onLayoutItemDrop,
   onFieldChange,
   onAddCustomField,
   onRemoveCustomField,
@@ -34,6 +36,7 @@ export function PreviewPane({
         <div>
           <p className="eyebrow">{t("livePreview")}</p>
           <h2>{previewModeTitle}</h2>
+          {activeBatchLabel ? <p className="panel-copy compact-copy">{t("activeBatchLabel", { label: activeBatchLabel })}</p> : null}
         </div>
         <div className="preview-meta-actions">
           <p className="panel-copy compact-copy">{previewModeCopy}</p>
@@ -67,34 +70,28 @@ export function PreviewPane({
             gap: `${Math.max(8, Number(form.sheetGap) * 1.4)}px`
           }}
         >
-          {Array.from({ length: 6 }).map((_, index) => (
-            <div
-              key={index}
-              ref={index === 0 ? activeSlotRef : null}
-              className={`sheet-slot ${index === 0 ? "active-slot" : ""} ${index >= slotCount ? "hidden" : ""}`}
-            >
-              {index === 0 ? (
-                <LabelPreview
-                  form={form}
-                  t={t}
-                  labelRef={labelRef}
-                  barcodeRef={barcodeRef}
-                  qrDataUrl={qrDataUrl}
-                  onPointerDown={onStartDrag}
-                  previewTransform={previewTransform}
-                  stats={stats}
-                  onLayoutItemChange={onLayoutItemChange}
-                  onFieldChange={onFieldChange}
-                  onAddCustomField={onAddCustomField}
-                  onRemoveCustomField={onRemoveCustomField}
-                  activeInspectorTarget={activeInspectorTarget}
-                  onInspectTargetChange={onInspectTargetChange}
-                />
-              ) : (
-                <div className="slot-placeholder">{t("emptySlot")}</div>
-              )}
-            </div>
-          ))}
+          <div
+            ref={activeSlotRef}
+            className={`sheet-slot active-slot ${slotCount < 1 ? "hidden" : ""}`}
+          >
+            <LabelPreview
+              form={form}
+              t={t}
+              labelRef={labelRef}
+              barcodeRef={barcodeRef}
+              qrDataUrl={qrDataUrl}
+              onPointerDown={onStartDrag}
+              previewTransform={previewTransform}
+              stats={stats}
+              onLayoutItemChange={onLayoutItemChange}
+              onLayoutItemDrop={onLayoutItemDrop}
+              onFieldChange={onFieldChange}
+              onAddCustomField={onAddCustomField}
+              onRemoveCustomField={onRemoveCustomField}
+              activeInspectorTarget={activeInspectorTarget}
+              onInspectTargetChange={onInspectTargetChange}
+            />
+          </div>
         </div>
       </section>
     </main>
