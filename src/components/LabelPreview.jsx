@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { normalizeLayoutItems } from "../constants/layoutItems";
+import { defaultLayoutItems, normalizeLayoutItems } from "../constants/layoutItems";
 import { getFontOption } from "../constants/typography";
 import { hexToRgba } from "../utils/colors";
 
@@ -226,6 +226,111 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
+function snapToGuide(value, guides, threshold = 2.2) {
+  let snappedValue = value;
+  let snappedGuide = null;
+  let minDistance = threshold;
+
+  guides.forEach(guide => {
+    const distance = Math.abs(value - guide);
+    if (distance <= minDistance) {
+      minDistance = distance;
+      snappedValue = guide;
+      snappedGuide = guide;
+    }
+  });
+
+  return { value: snappedValue, guide: snappedGuide };
+}
+
+function findBestGuide(points, guides, threshold = 2.2) {
+  let bestMatch = null;
+
+  points.forEach(point => {
+    guides.forEach(guide => {
+      const distance = Math.abs(point.position - guide);
+      if (distance > threshold) {
+        return;
+      }
+
+      if (!bestMatch || distance < bestMatch.distance) {
+        bestMatch = {
+          ...point,
+          guide,
+          distance
+        };
+      }
+    });
+  });
+
+  return bestMatch;
+}
+
+function getBlockLabel(itemKey) {
+  const labels = {
+    brand: "Logo / Marka",
+    title: "Baslik",
+    sender: "Gonderen",
+    recipient: "Alici",
+    primary: "Ana Bilgiler",
+    secondary: "Ikinci Bilgiler",
+    custom: "Ozel Alanlar",
+    barcode: "Barkod",
+    footer: "Alt Alan"
+  };
+
+  return labels[itemKey] || itemKey;
+}
+
+function getLayoutPresetPatch(preset) {
+  if (preset === "fullWidth") {
+    return { x: 4, w: 92 };
+  }
+
+  if (preset === "leftCard") {
+    return { x: 4, w: 44 };
+  }
+
+  if (preset === "rightCard") {
+    return { x: 52, w: 44 };
+  }
+
+  if (preset === "footerStrip") {
+    return { x: 4, y: 88, w: 92, h: 8 };
+  }
+
+  return null;
+}
+
+function buildSnapGuides(layoutItems, activeItemKey, gridXStep = 0, gridYStep = 0, includeGrid = false) {
+  const vertical = [0, 50, 100];
+  const horizontal = [0, 50, 100];
+
+  Object.entries(layoutItems).forEach(([key, frame]) => {
+    if (key === activeItemKey || frame.visible === false) {
+      return;
+    }
+
+    vertical.push(frame.x, frame.x + (frame.w / 2), frame.x + frame.w);
+    horizontal.push(frame.y, frame.y + (frame.h / 2), frame.y + frame.h);
+  });
+
+  if (includeGrid && gridXStep > 0 && gridYStep > 0) {
+    for (let x = gridXStep; x < 100; x += gridXStep) {
+      vertical.push(x);
+    }
+
+    for (let y = gridYStep; y < 100; y += gridYStep) {
+      horizontal.push(y);
+    }
+  }
+
+  return {
+    vertical: [...new Set(vertical.map(value => Number(value.toFixed(2))))],
+    horizontal: [...new Set(horizontal.map(value => Number(value.toFixed(2))))]
+  };
+}
+
 function InlineEditableText({
   value,
   placeholder = "",
@@ -292,7 +397,7 @@ function InlineEditableText({
   );
 }
 
-function EditableBlock({ itemKey, frame, onChange, children, accentColor, labelRef, selected, onSelect, onContextMenu }) {
+function EditableBlock({ itemKey, frame, onChange, children, accentColor, labelRef, selected, onSelect, onContextMenu, onGuideChange, snapGuides, title }) {
   const [editState, setEditState] = useState(null);
 
   const startDrag = event => {
@@ -340,14 +445,61 @@ function EditableBlock({ itemKey, frame, onChange, children, accentColor, labelR
     const deltaYPercent = ((event.clientY - editState.startY) / editState.bounds.height) * 100;
 
     if (editState.mode === "move") {
-      const x = clamp(editState.origin.x + deltaXPercent, 0, 100 - editState.origin.w);
-      const y = clamp(editState.origin.y + deltaYPercent, 0, 100 - editState.origin.h);
-      onChange(itemKey, { x, y });
+      const rawX = clamp(editState.origin.x + deltaXPercent, 0, 100 - editState.origin.w);
+      const rawY = clamp(editState.origin.y + deltaYPercent, 0, 100 - editState.origin.h);
+      const bestX = findBestGuide([
+        { anchor: "start", position: rawX },
+        { anchor: "center", position: rawX + (editState.origin.w / 2) },
+        { anchor: "end", position: rawX + editState.origin.w }
+      ], snapGuides.vertical);
+      const bestY = findBestGuide([
+        { anchor: "start", position: rawY },
+        { anchor: "center", position: rawY + (editState.origin.h / 2) },
+        { anchor: "end", position: rawY + editState.origin.h }
+      ], snapGuides.horizontal);
+      const nextX = bestX
+        ? clamp(
+          bestX.anchor === "center"
+            ? bestX.guide - (editState.origin.w / 2)
+            : bestX.anchor === "end"
+              ? bestX.guide - editState.origin.w
+              : bestX.guide,
+          0,
+          100 - editState.origin.w
+        )
+        : rawX;
+      const nextY = bestY
+        ? clamp(
+          bestY.anchor === "center"
+            ? bestY.guide - (editState.origin.h / 2)
+            : bestY.anchor === "end"
+              ? bestY.guide - editState.origin.h
+              : bestY.guide,
+          0,
+          100 - editState.origin.h
+        )
+        : rawY;
+
+      onGuideChange?.({
+        vertical: bestX?.guide ?? null,
+        horizontal: bestY?.guide ?? null
+      });
+      onChange(itemKey, { x: nextX, y: nextY });
       return;
     }
 
-    const w = clamp(editState.origin.w + deltaXPercent, 12, 100 - editState.origin.x);
-    const h = clamp(editState.origin.h + deltaYPercent, 8, 100 - editState.origin.y);
+    const rawW = clamp(editState.origin.w + deltaXPercent, 12, 100 - editState.origin.x);
+    const rawH = clamp(editState.origin.h + deltaYPercent, 8, 100 - editState.origin.y);
+    const nextRight = snapToGuide(rawW + editState.origin.x, snapGuides.vertical);
+    const nextBottom = snapToGuide(rawH + editState.origin.y, snapGuides.horizontal);
+    const snappedW = nextRight.value - editState.origin.x;
+    const snappedH = nextBottom.value - editState.origin.y;
+    const w = clamp(snappedW, 12, 100 - editState.origin.x);
+    const h = clamp(snappedH, 8, 100 - editState.origin.y);
+    onGuideChange?.({
+      vertical: nextRight.guide,
+      horizontal: nextBottom.guide
+    });
     onChange(itemKey, { w, h });
   };
 
@@ -357,6 +509,7 @@ function EditableBlock({ itemKey, frame, onChange, children, accentColor, labelR
     }
 
     setEditState(null);
+    onGuideChange?.({ vertical: null, horizontal: null });
   };
 
   return (
@@ -391,6 +544,12 @@ function EditableBlock({ itemKey, frame, onChange, children, accentColor, labelR
           <span className="layout-block-dots" />
         </div>
       )}
+      {selected && (
+        <div className="layout-block-chip">
+          <strong>{title}</strong>
+          <span>{Math.round(frame.x)} / {Math.round(frame.y)} · {Math.round(frame.w)} x {Math.round(frame.h)}</span>
+        </div>
+      )}
       <div className="layout-block-body">{children}</div>
       {selected && (
         <button type="button" className="layout-resize-handle" onPointerDown={startResize} aria-label={`${itemKey}-resize`} />
@@ -412,6 +571,8 @@ export function LabelPreview({
   onFieldChange,
   onAddCustomField,
   onRemoveCustomField,
+  onUpdateCustomField,
+  onDuplicateCustomField,
   onLayoutItemDrop,
   activeInspectorTarget,
   onInspectTargetChange
@@ -422,13 +583,21 @@ export function LabelPreview({
   const gridStep = Math.max(2, Number(form.gridStepMm) || 10);
   const gridColumns = Math.max(1, Number(form.labelWidthMm) / gridStep);
   const gridRows = Math.max(1, Number(form.labelHeightMm) / gridStep);
+  const gridXStep = 100 / gridColumns;
+  const gridYStep = 100 / gridRows;
   const fontOption = getFontOption(form.fontFamily);
   const visibleCustomFields = (stats.customFields || []).filter(field => field.visible !== false && (field.label || field.value));
   const layoutItems = normalizeLayoutItems(form.layoutItems);
+  const snapGuidesByItem = useMemo(() => Object.fromEntries(
+    Object.keys(layoutItems).map(key => [key, buildSnapGuides(layoutItems, key, gridXStep, gridYStep, form.showGridOverlay)])
+  ), [form.showGridOverlay, gridXStep, gridYStep, layoutItems]);
   const menuLabels = buildMenuLabels(form.uiLanguage);
   const labelBodyRef = useRef(null);
   const [contextMenu, setContextMenu] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
+  const [isDropActive, setIsDropActive] = useState(false);
+  const [snapGuides, setSnapGuides] = useState({ vertical: null, horizontal: null });
+  const [copiedBlockFrame, setCopiedBlockFrame] = useState(null);
   const selectItem = itemKey => {
     setSelectedItem(itemKey);
     onInspectTargetChange?.(itemKey);
@@ -537,15 +706,129 @@ export function LabelPreview({
     return items;
   };
 
+  const buildBlockActionMenu = blockKey => {
+    const currentFrame = layoutItems[blockKey];
+    const defaultFrame = defaultLayoutItems[blockKey];
+    const copiedFrame = copiedBlockFrame?.frame || null;
+    const canPasteFrame = Boolean(copiedFrame);
+
+    const pasteFrame = patch => {
+      if (!copiedFrame) {
+        return;
+      }
+
+      const nextW = patch?.w ?? copiedFrame.w;
+      const nextH = patch?.h ?? copiedFrame.h;
+      const nextX = clamp(patch?.x ?? copiedFrame.x, 0, 100 - nextW);
+      const nextY = clamp(patch?.y ?? copiedFrame.y, 0, 100 - nextH);
+
+      onLayoutItemChange?.(blockKey, {
+        x: nextX,
+        y: nextY,
+        w: nextW,
+        h: nextH,
+        visible: true
+      });
+    };
+
+    return [
+      {
+        label: "Duzen Kopyala / Yapistir",
+        children: [
+          {
+            label: "Duzeni kopyala",
+            action: () => setCopiedBlockFrame({
+              sourceKey: blockKey,
+              frame: {
+                x: currentFrame.x,
+                y: currentFrame.y,
+                w: currentFrame.w,
+                h: currentFrame.h
+              }
+            }),
+            stateLabel: menuLabels.submenu
+          },
+          {
+            label: "Tam duzeni yapistir",
+            action: () => pasteFrame(),
+            stateLabel: canPasteFrame ? (copiedBlockFrame?.sourceKey === blockKey ? "Ayni alan" : "Hazir") : "Bos"
+          },
+          {
+            label: "Sadece genislik yapistir",
+            action: () => pasteFrame({ w: copiedFrame?.w ?? currentFrame.w, x: currentFrame.x, y: currentFrame.y, h: currentFrame.h }),
+            stateLabel: canPasteFrame ? "Hazir" : "Bos"
+          },
+          {
+            label: "Sadece yukseklik yapistir",
+            action: () => pasteFrame({ h: copiedFrame?.h ?? currentFrame.h, x: currentFrame.x, y: currentFrame.y, w: currentFrame.w }),
+            stateLabel: canPasteFrame ? "Hazir" : "Bos"
+          }
+        ]
+      },
+      {
+        label: "Hizli Islemler",
+        children: [
+          {
+            label: "Ortala",
+            action: () => onLayoutItemChange?.(blockKey, {
+              x: clamp((100 - currentFrame.w) / 2, 0, 100 - currentFrame.w),
+              y: clamp((100 - currentFrame.h) / 2, 0, 100 - currentFrame.h)
+            }),
+            stateLabel: menuLabels.submenu
+          },
+          {
+            label: "Varsayilana don",
+            action: () => defaultFrame ? onLayoutItemChange?.(blockKey, { ...defaultFrame }) : null,
+            stateLabel: menuLabels.submenu
+          },
+          {
+            label: "Gizle",
+            action: () => onLayoutItemChange?.(blockKey, { visible: false }),
+            stateLabel: menuLabels.submenu
+          }
+        ]
+      },
+      {
+        label: "Hazir Yerlesim",
+        children: [
+          {
+            label: "Tam Genis",
+            action: () => onLayoutItemChange?.(blockKey, getLayoutPresetPatch("fullWidth")),
+            stateLabel: menuLabels.submenu
+          },
+          {
+            label: "Sol Kart",
+            action: () => onLayoutItemChange?.(blockKey, getLayoutPresetPatch("leftCard")),
+            stateLabel: menuLabels.submenu
+          },
+          {
+            label: "Sag Kart",
+            action: () => onLayoutItemChange?.(blockKey, getLayoutPresetPatch("rightCard")),
+            stateLabel: menuLabels.submenu
+          },
+          {
+            label: "Alt Serit",
+            action: () => onLayoutItemChange?.(blockKey, getLayoutPresetPatch("footerStrip")),
+            stateLabel: menuLabels.submenu
+          }
+        ]
+      },
+      { type: "divider" }
+    ];
+  };
+
   const openAddMenu = event => {
     openContextMenu(event, buildMenuTree());
   };
 
   const removeBuiltInCell = key => onFieldChange?.(key, false);
   const buildRemoveMenu = key => event => openContextMenu(event, [{ label: t("removeCell"), action: () => removeBuiltInCell(key) }]);
-  const buildHideBlockMenu = blockKey => event => openContextMenu(event, buildMenuTree({
-    removeAction: () => onLayoutItemChange?.(blockKey, { visible: false })
-  }));
+  const buildHideBlockMenu = blockKey => event => openContextMenu(event, [
+    ...buildBlockActionMenu(blockKey),
+    ...buildMenuTree({
+      removeAction: () => onLayoutItemChange?.(blockKey, { visible: false })
+    })
+  ]);
 
   return (
     <section
@@ -595,6 +878,20 @@ export function LabelPreview({
           }
           event.preventDefault();
           event.dataTransfer.dropEffect = "move";
+          setIsDropActive(true);
+        }}
+        onDragEnter={event => {
+          const itemKey = event.dataTransfer?.types?.includes("application/x-labelit-layout-item");
+          if (!itemKey) {
+            return;
+          }
+          event.preventDefault();
+          setIsDropActive(true);
+        }}
+        onDragLeave={event => {
+          if (!labelBodyRef.current?.contains(event.relatedTarget)) {
+            setIsDropActive(false);
+          }
         }}
         onDrop={event => {
           const itemKey = event.dataTransfer?.getData("application/x-labelit-layout-item") || event.dataTransfer?.getData("text/plain");
@@ -611,6 +908,7 @@ export function LabelPreview({
           const y = ((event.clientY - bounds.top) / bounds.height) * 100;
           onLayoutItemDrop?.(itemKey, { x, y });
           selectItem(itemKey);
+          setIsDropActive(false);
         }}
         onContextMenu={event => {
           setSelectedItem(null);
@@ -637,6 +935,18 @@ export function LabelPreview({
           "--body-font-size": `${form.bodyFontSize}px`
         }}
       >
+        {snapGuides.vertical !== null && (
+          <div className="label-snap-guide vertical" style={{ left: `${snapGuides.vertical}%` }} />
+        )}
+        {snapGuides.horizontal !== null && (
+          <div className="label-snap-guide horizontal" style={{ top: `${snapGuides.horizontal}%` }} />
+        )}
+        {isDropActive && (
+          <div className="label-drop-indicator">
+            <strong>Buraya birak</strong>
+            <span>Secilen alan etikete eklenecek ve otomatik aktif olacak.</span>
+          </div>
+        )}
         {form.showGridOverlay && (
           <div
             className="label-grid-overlay"
@@ -681,6 +991,9 @@ export function LabelPreview({
           selected={selectedItem === "brand" || activeInspectorTarget === "brand"}
           onSelect={selectItem}
           onContextMenu={buildHideBlockMenu("brand")}
+          onGuideChange={setSnapGuides}
+          snapGuides={snapGuidesByItem.brand}
+          title={getBlockLabel("brand")}
         >
           <div className="logo-wrap">
             {form.logoDataUrl ? <img className="logo-image" alt="Logo" src={form.logoDataUrl} /> : (
@@ -706,6 +1019,9 @@ export function LabelPreview({
           selected={selectedItem === "title" || activeInspectorTarget === "title"}
           onSelect={selectItem}
           onContextMenu={buildHideBlockMenu("title")}
+          onGuideChange={setSnapGuides}
+          snapGuides={snapGuidesByItem.title}
+          title={getBlockLabel("title")}
         >
           <div className="cargo" style={{ color: form.accentColor }}>
             <InlineEditableText
@@ -727,6 +1043,9 @@ export function LabelPreview({
             selected={selectedItem === "sender" || activeInspectorTarget === "sender"}
             onSelect={selectItem}
             onContextMenu={buildHideBlockMenu("sender")}
+            onGuideChange={setSnapGuides}
+            snapGuides={snapGuidesByItem.sender}
+            title={getBlockLabel("sender")}
           >
             <div className="block free-block">
               <small>{t("labelSender")}</small>
@@ -761,6 +1080,9 @@ export function LabelPreview({
             selected={selectedItem === "recipient" || activeInspectorTarget === "recipient"}
             onSelect={selectItem}
             onContextMenu={buildHideBlockMenu("recipient")}
+            onGuideChange={setSnapGuides}
+            snapGuides={snapGuidesByItem.recipient}
+            title={getBlockLabel("recipient")}
           >
             <div className={`block recipient free-block ${form.highlightRecipient ? "highlighted" : ""}`} style={{ borderColor: form.highlightRecipient ? form.accentColor : "transparent" }}>
               <small>{t("labelRecipient")}</small>
@@ -795,21 +1117,46 @@ export function LabelPreview({
           selected={selectedItem === "primary" || activeInspectorTarget === "primary"}
           onSelect={selectItem}
           onContextMenu={buildHideBlockMenu("primary")}
+          onGuideChange={setSnapGuides}
+          snapGuides={snapGuidesByItem.primary}
+          title={getBlockLabel("primary")}
         >
           <div className={`grid free-grid ${visiblePrimaryCount <= 1 ? "single-stat" : ""} ${visiblePrimaryCount === 2 ? "two-stats" : ""}`}>
             {form.showOrderNo && (
               <div onContextMenu={buildRemoveMenu("showOrderNo")} onContextMenuCapture={event => event.stopPropagation()}>
-                <small>{t("labelOrderNo")}</small><strong>{form.orderNo}</strong>
+                <small>{t("labelOrderNo")}</small>
+                <strong>
+                  <InlineEditableText
+                    value={form.orderNo}
+                    placeholder={t("orderNo")}
+                    onCommit={nextValue => onFieldChange?.("orderNo", nextValue)}
+                  />
+                </strong>
               </div>
             )}
             {form.showReference && (
               <div onContextMenu={buildRemoveMenu("showReference")} onContextMenuCapture={event => event.stopPropagation()}>
-                <small>{t("labelReference")}</small><strong>{form.reference}</strong>
+                <small>{t("labelReference")}</small>
+                <strong>
+                  <InlineEditableText
+                    value={form.reference}
+                    placeholder={t("reference")}
+                    onCommit={nextValue => onFieldChange?.("reference", nextValue)}
+                  />
+                </strong>
               </div>
             )}
             {form.showWeight && (
               <div onContextMenu={buildRemoveMenu("showWeight")} onContextMenuCapture={event => event.stopPropagation()}>
-                <small>{t("labelWeight")}</small><strong>{weightText}</strong>
+                <small>{t("labelWeight")}</small>
+                <strong>
+                  <InlineEditableText
+                    value={form.weightValue}
+                    placeholder={t("weight")}
+                    onCommit={nextValue => onFieldChange?.("weightValue", nextValue)}
+                  />
+                  {form.weightUnit ? ` ${form.weightUnit}` : ""}
+                </strong>
               </div>
             )}
           </div>
@@ -826,21 +1173,46 @@ export function LabelPreview({
             selected={selectedItem === "secondary" || activeInspectorTarget === "secondary"}
             onSelect={selectItem}
             onContextMenu={buildHideBlockMenu("secondary")}
+            onGuideChange={setSnapGuides}
+            snapGuides={snapGuidesByItem.secondary}
+            title={getBlockLabel("secondary")}
           >
             <div className={`grid free-grid ${visibleSecondaryCount <= 1 ? "single-stat" : ""} ${visibleSecondaryCount === 2 ? "two-stats" : ""}`}>
               {form.showDistance && (
                 <div onContextMenu={buildRemoveMenu("showDistance")} onContextMenuCapture={event => event.stopPropagation()}>
-                  <small>{t("labelDistance")}</small><strong>{distanceText}</strong>
+                  <small>{t("labelDistance")}</small>
+                  <strong>
+                    <InlineEditableText
+                      value={form.distanceValue}
+                      placeholder={t("distance")}
+                      onCommit={nextValue => onFieldChange?.("distanceValue", nextValue)}
+                    />
+                    {form.distanceUnit ? ` ${form.distanceUnit}` : ""}
+                  </strong>
                 </div>
               )}
               {form.showDeliveryTime && (
                 <div onContextMenu={buildRemoveMenu("showDeliveryTime")} onContextMenuCapture={event => event.stopPropagation()}>
-                  <small>{t("labelDelivery")}</small><strong>{deliveryTimeText}</strong>
+                  <small>{t("labelDelivery")}</small>
+                  <strong>
+                    <InlineEditableText
+                      value={form.deliveryTime}
+                      placeholder={deliveryTimeText || t("deliveryTime")}
+                      onCommit={nextValue => onFieldChange?.("deliveryTime", nextValue)}
+                    />
+                  </strong>
                 </div>
               )}
               {form.showDeliveryType && (
                 <div onContextMenu={buildRemoveMenu("showDeliveryType")} onContextMenuCapture={event => event.stopPropagation()}>
-                  <small>{t("labelType")}</small><strong>{deliveryTypeText}</strong>
+                  <small>{t("labelType")}</small>
+                  <strong>
+                    <InlineEditableText
+                      value={form.deliveryType}
+                      placeholder={t("deliveryType")}
+                      onCommit={nextValue => onFieldChange?.("deliveryType", nextValue)}
+                    />
+                  </strong>
                 </div>
               )}
             </div>
@@ -857,6 +1229,9 @@ export function LabelPreview({
             selected={selectedItem === "custom" || activeInspectorTarget === "custom"}
             onSelect={selectItem}
             onContextMenu={buildHideBlockMenu("custom")}
+            onGuideChange={setSnapGuides}
+            snapGuides={snapGuidesByItem.custom}
+            title={getBlockLabel("custom")}
           >
             <div
               className={`grid free-grid ${visibleCustomFields.length <= 1 ? "single-stat" : ""} ${visibleCustomFields.length === 2 ? "two-stats" : ""}`}
@@ -866,14 +1241,28 @@ export function LabelPreview({
                 <div
                   key={field.id}
                   onContextMenu={event => openContextMenu(event, [
+                    { label: "Alani kopyala", action: () => onDuplicateCustomField?.(field.id) },
+                    { type: "divider" },
                     { label: t("removeCell"), action: () => onRemoveCustomField?.(field.id) },
                     { type: "divider" },
                     ...buildMenuTree()
                   ])}
                   onContextMenuCapture={event => event.stopPropagation()}
                 >
-                  <small>{field.label || t("customFieldLabel")}</small>
-                  <strong>{field.value}</strong>
+                  <small>
+                    <InlineEditableText
+                      value={field.label}
+                      placeholder={t("customFieldLabel")}
+                      onCommit={nextValue => onUpdateCustomField?.(field.id, { label: nextValue })}
+                    />
+                  </small>
+                  <strong>
+                    <InlineEditableText
+                      value={field.value}
+                      placeholder={t("customFieldValue")}
+                      onCommit={nextValue => onUpdateCustomField?.(field.id, { value: nextValue })}
+                    />
+                  </strong>
                 </div>
               ))}
             </div>
@@ -890,8 +1279,22 @@ export function LabelPreview({
           selected={selectedItem === "barcode" || activeInspectorTarget === "barcode"}
           onSelect={selectItem}
           onContextMenu={buildHideBlockMenu("barcode")}
+          onGuideChange={setSnapGuides}
+          snapGuides={snapGuidesByItem.barcode}
+          title={getBlockLabel("barcode")}
         >
-            <svg ref={barcodeRef} id="barcode" />
+            <div className="barcode-edit-wrap">
+              <svg ref={barcodeRef} id="barcode" />
+              {form.showBarcodeValue && (
+                <div className="barcode-inline-value">
+                  <InlineEditableText
+                    value={form.barcodeText}
+                    placeholder={t("barcode")}
+                    onCommit={nextValue => onFieldChange?.("barcodeText", nextValue)}
+                  />
+                </div>
+              )}
+            </div>
           </EditableBlock>
         )}
 
@@ -905,6 +1308,9 @@ export function LabelPreview({
             selected={selectedItem === "footer" || activeInspectorTarget === "footer"}
             onSelect={selectItem}
             onContextMenu={buildHideBlockMenu("footer")}
+            onGuideChange={setSnapGuides}
+            snapGuides={snapGuidesByItem.footer}
+            title={getBlockLabel("footer")}
           >
             <div className={`bottom free-bottom ${!form.showQr ? "no-qr" : ""}`}>
               {form.showQr && <div id="qrcode">{qrDataUrl ? <img src={qrDataUrl} alt="QR Code" width={form.density === "compact" ? 72 : 85} height={form.density === "compact" ? 72 : 85} /> : null}</div>}

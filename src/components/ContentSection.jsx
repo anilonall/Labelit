@@ -13,6 +13,7 @@ export function ContentSection({
   onAddCustomField,
   onUpdateCustomField,
   onRemoveCustomField,
+  onDuplicateCustomField,
   onBatchImportClick,
   onBatchFileChange,
   onBatchClear,
@@ -228,7 +229,10 @@ export function ContentSection({
                   <input type="checkbox" checked={field.visible !== false} onChange={event => onUpdateCustomField(field.id, { visible: event.target.checked })} />
                   <span>{t("showCustomField")}</span>
                 </label>
-                <button type="button" className="ghost-button danger-button" onClick={() => onRemoveCustomField(field.id)}>{t("removeCustomField")}</button>
+                <div className="action-group">
+                  <button type="button" className="ghost-button" onClick={() => onDuplicateCustomField?.(field.id)}>Kopyala</button>
+                  <button type="button" className="ghost-button danger-button" onClick={() => onRemoveCustomField(field.id)}>{t("removeCustomField")}</button>
+                </div>
               </div>
             </div>
           ))}

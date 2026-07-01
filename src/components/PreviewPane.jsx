@@ -21,6 +21,8 @@ export function PreviewPane({
   onFieldChange,
   onAddCustomField,
   onRemoveCustomField,
+  onUpdateCustomField,
+  onDuplicateCustomField,
   onWheelZoom,
   scale,
   onZoomIn,
@@ -88,6 +90,8 @@ export function PreviewPane({
               onFieldChange={onFieldChange}
               onAddCustomField={onAddCustomField}
               onRemoveCustomField={onRemoveCustomField}
+              onUpdateCustomField={onUpdateCustomField}
+              onDuplicateCustomField={onDuplicateCustomField}
               activeInspectorTarget={activeInspectorTarget}
               onInspectTargetChange={onInspectTargetChange}
             />

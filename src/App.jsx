@@ -8,6 +8,7 @@ import { HeaderControls } from "./components/HeaderControls";
 import { LayoutPaletteSection } from "./components/LayoutPaletteSection";
 import { PreviewPane } from "./components/PreviewPane";
 import { PrintSettingsSection } from "./components/PrintSettingsSection";
+import { SelectionInspectorSection } from "./components/SelectionInspectorSection";
 import { StartupOverlay } from "./components/StartupOverlay";
 import { TemplateSection } from "./components/TemplateSection";
 import { getTranslator } from "./constants/i18n";
@@ -30,6 +31,7 @@ import { parseBatchText, removeImportedCustomFields } from "./utils/batchImport"
 import { formatDeliveryTime, formatMeasurement } from "./utils/formatters";
 import { clamp, safe, slugify } from "./utils/helpers";
 import { createBatchPdfDocument, createPdfDocument } from "./utils/pdfExport";
+import { printLabelFromElement } from "./utils/printLabel";
 import { isBuiltInTemplate, loadTemplates, persistCustomTemplates } from "./utils/templateStorage";
 
 const FIXED_PRINT_MODE = "thermal";
@@ -795,6 +797,32 @@ function App() {
     }));
   };
 
+  const duplicateCustomField = fieldId => {
+    applyFormChange(current => {
+      const fields = normalizeCustomFields(current.customFields);
+      const sourceField = fields.find(field => field.id === fieldId);
+      if (!sourceField) {
+        return current;
+      }
+
+      const duplicatedField = {
+        ...sourceField,
+        id: `custom-field-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        label: sourceField.label ? `${sourceField.label} Kopya` : "",
+        sourceType: sourceField.sourceType || "manual"
+      };
+
+      const sourceIndex = fields.findIndex(field => field.id === fieldId);
+      const nextFields = [...fields];
+      nextFields.splice(sourceIndex + 1, 0, duplicatedField);
+
+      return {
+        ...current,
+        customFields: nextFields
+      };
+    });
+  };
+
   const applyBatchRecord = record => {
     if (!record) {
       return;
@@ -1006,6 +1034,15 @@ function App() {
     pdf?.save("shipping-label-batch.pdf");
   };
 
+  const handlePrint = () => {
+    const printableElement = labelRef.current?.querySelector(".label");
+    if (!printableElement) {
+      return;
+    }
+
+    printLabelFromElement(printableElement, displayTemplateName || "label");
+  };
+
   const exportZpl = () => {
     const visibleCustomFields = stats.customFields
       .filter(field => field.visible !== false && (field.label || field.value))
@@ -1141,6 +1178,54 @@ ${form.showNote ? `^FO40,${noteBodyY}^FD${safe(form.note)}^FS` : ""}
   const clearInspectorTarget = () => {
     setActiveInspectorTarget(null);
   };
+
+  useEffect(() => {
+    const handleKeyDown = event => {
+      if (!activeInspectorTarget) {
+        return;
+      }
+
+      const targetTag = event.target?.tagName;
+      if (targetTag === "INPUT" || targetTag === "TEXTAREA" || targetTag === "SELECT" || event.target?.isContentEditable) {
+        return;
+      }
+
+      const currentFrame = normalizeLayoutItems(formRef.current?.layoutItems)[activeInspectorTarget];
+      if (!currentFrame) {
+        return;
+      }
+
+      const step = event.shiftKey ? 5 : 1;
+
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        updateLayoutItem(activeInspectorTarget, { x: clamp(currentFrame.x - step, 0, 100 - currentFrame.w) });
+        return;
+      }
+
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        updateLayoutItem(activeInspectorTarget, { x: clamp(currentFrame.x + step, 0, 100 - currentFrame.w) });
+        return;
+      }
+
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        updateLayoutItem(activeInspectorTarget, { y: clamp(currentFrame.y - step, 0, 100 - currentFrame.h) });
+        return;
+      }
+
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        updateLayoutItem(activeInspectorTarget, { y: clamp(currentFrame.y + step, 0, 100 - currentFrame.h) });
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [activeInspectorTarget]);
 
   const startDrag = event => {
     if (event.button !== 0) {
@@ -1376,6 +1461,13 @@ ${form.showNote ? `^FO40,${noteBodyY}^FD${safe(form.note)}^FS` : ""}
               items={layoutPaletteItems}
             />
 
+            <SelectionInspectorSection
+              t={t}
+              selectedKey={activeInspectorTarget}
+              frame={activeInspectorTarget ? normalizedLayoutItems[activeInspectorTarget] : null}
+              onLayoutItemChange={updateLayoutItem}
+            />
+
             {activePanelTab === "setup" && (
               <>
                 <TemplateSection
@@ -1413,6 +1505,7 @@ ${form.showNote ? `^FO40,${noteBodyY}^FD${safe(form.note)}^FS` : ""}
                 onAddCustomField={addCustomField}
                 onUpdateCustomField={updateCustomField}
                 onRemoveCustomField={removeCustomField}
+                onDuplicateCustomField={duplicateCustomField}
                 onBatchImportClick={() => batchInputRef.current?.click()}
                 onBatchFileChange={handleBatchFileChange}
                 onBatchClear={clearBatchRecords}
@@ -1447,7 +1540,7 @@ ${form.showNote ? `^FO40,${noteBodyY}^FD${safe(form.note)}^FS` : ""}
                 batchCount={batchRecords.length}
                 onDownloadPdf={downloadPdf}
                 onDownloadBatchPdf={downloadBatchPdf}
-                onPrint={() => window.print()}
+                onPrint={handlePrint}
                 onExportZpl={exportZpl}
                 onZplChange={setZplOutput}
               />
@@ -1476,6 +1569,8 @@ ${form.showNote ? `^FO40,${noteBodyY}^FD${safe(form.note)}^FS` : ""}
           onFieldChange={updateField}
           onAddCustomField={addCustomField}
           onRemoveCustomField={removeCustomField}
+          onUpdateCustomField={updateCustomField}
+          onDuplicateCustomField={duplicateCustomField}
           onWheelZoom={handleWheelZoom}
           scale={scale}
           onZoomIn={() => changeSize(1)}
